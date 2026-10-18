@@ -8,6 +8,10 @@
  * sidebar has entries, the Discover shelves are populated, clicking a card
  * starts playback, lyrics and queue panels open, and routes navigate.
  *
+ * The last check imports a throwaway folder shaped like a music downloader's
+ * output — untagged files, names only in the file name, covers in sidecar
+ * images — and asserts the app derives real artist, title and artwork from it.
+ *
  * It also fails on any uncaught renderer exception or `console.error`, which is
  * exactly the class of bug that a build + typecheck cannot catch.
  *
@@ -28,6 +32,8 @@ const shotDir = process.argv.find((arg) => arg.startsWith('--screenshot='))?.sli
 
 const PORT = Number(process.env.SMOKE_PORT ?? 9333)
 const userDataDir = path.join(os.tmpdir(), `kolaars-smoke-${process.pid}`)
+/** Throwaway folder of downloader-shaped files, used by the local import check. */
+const fixtureDir = path.join(os.tmpdir(), `kolaars-smoke-music-${process.pid}`)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const paint = (color, text) => `\u001b[${color}m${text}\u001b[0m`
@@ -452,6 +458,7 @@ async function main() {
       }
       try {
         rmSync(userDataDir, { recursive: true, force: true })
+        rmSync(fixtureDir, { recursive: true, force: true })
       } catch {
         /* ignore */
       }
@@ -709,6 +716,72 @@ async function main() {
           failures.push(`screenshot ${scene.name}: ${error.message}`)
         }
       }
+    }
+
+    /* Local import of the shape a music downloader leaves behind: not a single
+     * tag in the file, the names only in the file name, and the cover as a
+     * separate image beside the track — under either of the two conventions such
+     * folders mix. Nothing above covers this path, and it is what makes a folder
+     * of downloads usable. Run last, so the screenshots show the seed catalog. */
+    try {
+      mkdirSync(fixtureDir, { recursive: true })
+      const fixtures = [
+        // [file name, expected artist, expected title, expected cover file name]
+        ['Aarne, BUSHIDO ZHO - SOS.flac', 'Aarne, BUSHIDO ZHO', 'SOS', 'Aarne, BUSHIDO ZHO - SOS.flac.cover.jpg'],
+        ['Нервы - Батареи.flac', 'Нервы', 'Батареи', 'Нервы - Батареи.jpg'],
+        // A dash inside the title must not be mistaken for a second separator.
+        ['Mckyyy - Roi - Instrumental Slowed.m4a', 'Mckyyy', 'Roi - Instrumental Slowed', null]
+      ]
+      for (const [name] of fixtures) writeFileSync(path.join(fixtureDir, name), 'not really audio')
+      // The two conventions seen in the wild, neither of them embedded.
+      writeFileSync(path.join(fixtureDir, fixtures[0][3]), 'cover')
+      writeFileSync(path.join(fixtureDir, fixtures[1][3]), 'cover')
+
+      const paths = fixtures.map(([name]) => path.join(fixtureDir, name))
+      const result = await cdp.evaluate(`(async () => {
+        /* kmedia://local/<base64url of the path>: decode it without Buffer. */
+        const decode = (url) => {
+          const raw = new URL(url).pathname.replace(/^\\/+/, '')
+          const padded = raw.replace(/-/g, '+').replace(/_/g, '/')
+          const binary = atob(padded + '='.repeat((4 - (padded.length % 4)) % 4))
+          return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)))
+        }
+        const paths = ${JSON.stringify(paths)}
+        const imported = await window.kolaars.local.importPaths(paths)
+        const db = await window.kolaars.store.load()
+        const rows = db.tracks
+          .filter((track) => paths.includes(track.filePath))
+          .map((track) => ({
+            file: track.filePath,
+            artist: track.artist,
+            title: track.title,
+            cover: track.artwork ? decode(track.artwork) : null
+          }))
+        return { imported: imported.tracks.length, failed: imported.failed.length, rows }
+      })()`)
+
+      const byFile = new Map(result.rows.map((row) => [path.basename(row.file), row]))
+      let derived = 0
+      for (const [name, artist, title, cover] of fixtures) {
+        const row = byFile.get(name)
+        const coverName = row?.cover ? path.basename(row.cover) : null
+        const ok = Boolean(row) && row.artist === artist && row.title === title && coverName === cover
+        if (ok) derived++
+        else {
+          failures.push(
+            `local import of ${name}: expected ${artist} / ${title} / ${cover ?? 'no cover'}, got ${
+              row ? `${row.artist} / ${row.title} / ${coverName ?? 'no cover'}` : 'no track'
+            }`
+          )
+        }
+      }
+      const ok = derived === fixtures.length && result.failed === 0
+      process.stdout.write(
+        `${ok ? paint(32, '  ok  ') : paint(31, ' FAIL ')} untagged downloads import with names and sidecar covers (${derived}/${fixtures.length})\n`
+      )
+    } catch (error) {
+      failures.push(`local import of untagged downloads: ${error.message}`)
+      process.stdout.write(`${paint(31, ' FAIL ')} local import of untagged downloads (${error.message})\n`)
     }
   } catch (error) {
     failures.push(error.message)

@@ -6,6 +6,13 @@
  * and referenced through the `kmedia://` protocol. A sidecar `.lrc` next to an
  * audio file is imported automatically — the standard way people ship synced
  * lyrics with their own music.
+ *
+ * Output of music downloaders needs two extra concessions, both handled here.
+ * Such files frequently carry no tags whatsoever and are only named
+ * "Artist - Title", so the file name is parsed for names when the tags are
+ * silent. And the cover usually sits *next to* the track as its own image file
+ * rather than inside it, under one of a few naming conventions, so those are
+ * picked up too. Neither trick overrides a real tag: they only fill gaps.
  */
 
 import { promises as fs } from 'node:fs'
@@ -13,7 +20,9 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { allowMediaPath, encodeMediaUrl } from './media'
 import { coversDir, userDataDir } from './db'
+import { findSidecarCover } from './sidecarCover'
 import { parseLrc } from '@shared/lrc'
+import { parseArtistTitle } from '@shared/tracklist'
 import type { Lyrics, Track } from '@shared/types'
 
 export const AUDIO_EXTENSIONS = new Set([
@@ -167,14 +176,25 @@ export async function importAudioFile(filePath: string): Promise<{ track: Track;
     addedAt: Date.now()
   }
 
+  // Downloader output frequently carries no tags at all and is only named
+  // "Исполнитель - Название", so the file name is parsed as a fallback. It
+  // never overrides a tag that is actually present.
+  const fromName = parseArtistTitle(baseName)
+  if (fromName.title) track.title = fromName.title
+  if (fromName.artist) track.artist = fromName.artist
+
   const mm = await loadMusicMetadata()
   if (mm) {
     try {
       const parsed = await mm.parseFile(filePath, { duration: true })
       const { common, format } = parsed
-      track.title = cleanTag(common.title) ?? baseName
-      const artist = cleanTag(common.artist) ?? cleanTag(common.artists?.join(', '))
-      track.artist = artist ?? cleanTag(common.albumartist) ?? 'Неизвестный исполнитель'
+
+      const tagTitle = cleanTag(common.title)
+      if (tagTitle) track.title = tagTitle
+      const tagArtist =
+        cleanTag(common.artist) ?? cleanTag(common.artists?.join(', ')) ?? cleanTag(common.albumartist)
+      if (tagArtist) track.artist = tagArtist
+
       track.album = cleanTag(common.album)
       track.year = common.year ?? null
       track.genres = (common.genre ?? []).map((g) => String(g).trim()).filter(Boolean).slice(0, 6)
@@ -185,11 +205,23 @@ export async function importAudioFile(filePath: string): Promise<{ track: Track;
         track.artwork = await writeCover(id, picture.format, picture.data)
       }
     } catch {
-      /* keep filename-derived metadata */
+      /* Exotic containers land here — a FLAC stream wrapped in MP4 is the
+         common one — and some formats carry no readable tags at all. The names
+         taken from the file name stay, and the decoder fills in the duration
+         on first play. */
     }
   }
 
   allowMediaPath(filePath)
+
+  // With no embedded art, the cover is the separate image beside the track.
+  if (!track.artwork) {
+    const cover = await findSidecarCover(filePath)
+    if (cover) {
+      allowMediaPath(cover)
+      track.artwork = encodeMediaUrl(cover)
+    }
+  }
 
   // Sidecar lyrics: `song.mp3` + `song.lrc`.
   let lyrics: Lyrics | null = null

@@ -94,6 +94,12 @@ interface AppState {
   /** Resolves an unresolved archive track and caches the result. */
   ensureTrack: (id: string) => Promise<Track | undefined>
   cacheResolvedTrack: (track: Track) => void
+  /**
+   * Stores the duration the decoder reported for a local file that had none.
+   * Untagged downloads — and containers the tag reader cannot parse — only get
+   * a duration the first time they are played.
+   */
+  rememberTrackDuration: (id: string, seconds: number) => Promise<void>
   /** Registers transient tracks (search results, album items) so they can play. */
   cacheTracks: (tracks: Track[]) => void
   /** Fetches any of `ids` that the catalog does not know about yet. */
@@ -341,6 +347,19 @@ export const useApp = create<AppState>((set, get) => ({
           : state.userTracks
       }
     }),
+
+  rememberTrackDuration: async (trackId, seconds) => {
+    const track = get().catalogIndex.get(trackId)
+    // Only local files are written back, and only when nothing is known yet.
+    if (!track || track.duration || track.source !== 'local') return
+    const duration = Math.max(1, Math.round(seconds))
+    try {
+      const updated = await api.library.updateTrack(trackId, { duration })
+      if (updated) get().cacheResolvedTrack({ ...track, ...updated, duration })
+    } catch {
+      /* A blank duration is not worth interrupting playback for. */
+    }
+  },
 
   cacheTracks: (tracks) =>
     set((state) => {

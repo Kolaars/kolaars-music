@@ -74,11 +74,13 @@ function el(): HTMLAudioElement {
   element.addEventListener('loadedmetadata', () => {
     if (Number.isFinite(element.duration)) {
       usePlayer.setState({ duration: element.duration })
+      rememberDuration(element.duration)
     }
   })
   element.addEventListener('durationchange', () => {
     if (Number.isFinite(element.duration)) {
       usePlayer.setState({ duration: element.duration })
+      rememberDuration(element.duration)
     }
   })
   element.addEventListener('playing', () => {
@@ -108,6 +110,21 @@ function el(): HTMLAudioElement {
 
   audio = element
   return element
+}
+
+/**
+ * Records a duration the tags did not have.
+ *
+ * Downloader output is frequently untagged, and some of its containers (a FLAC
+ * stream inside MP4, notably) the tag reader cannot even walk — so the library
+ * only learns the length when the file is decoded. The store decides whether it
+ * is worth persisting.
+ */
+function rememberDuration(seconds: number): void {
+  if (!Number.isFinite(seconds) || seconds <= 0) return
+  const trackId = usePlayer.getState().currentId
+  if (!trackId) return
+  void useApp.getState().rememberTrackDuration(trackId, seconds)
 }
 
 function startTicker(): void {
