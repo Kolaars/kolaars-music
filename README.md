@@ -1,0 +1,315 @@
+# Kolaars Music
+
+**Открытый музыкальный проигрыватель для Windows: только свободная музыка и открытые тексты.**
+
+[![Лицензия: MIT](https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-MIT-blue.svg)](LICENSE)
+[![Платформа: Windows](https://img.shields.io/badge/%D0%BF%D0%BB%D0%B0%D1%82%D1%84%D0%BE%D1%80%D0%BC%D0%B0-Windows%2010%2F11%20x64-0078D6.svg)](#требования)
+[![Electron 44](https://img.shields.io/badge/Electron-44-47848F.svg)](https://www.electronjs.org/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
+
+Kolaars Music — настольное приложение-музыкальный сервис без регистрации, аккаунтов и
+телеметрии. Вся музыка — общественное достояние или Creative Commons из Internet Archive,
+все тексты — открытые (встроенный сборник общественного достояния + LRCLIB + Wikisource).
+
+> Интерфейс приложения полностью на русском языке. Каждый трек сопровождается ссылкой на
+> первоисточник и сведениями о лицензии.
+
+---
+
+## Содержание
+
+- [Скриншоты](#скриншоты)
+- [Возможности](#возможности)
+- [Требования](#требования)
+- [Разработка](#разработка)
+- [Скрипты](#скрипты)
+- [Сборка дистрибутивов](#сборка-дистрибутивов)
+- [Тестирование](#тестирование)
+- [Хранение данных](#хранение-данных)
+- [Архитектура](#архитектура)
+- [Данные и лицензии](#данные-и-лицензии)
+- [Участие в проекте](#участие-в-проекте)
+- [English](#english)
+
+---
+
+## Скриншоты
+
+| Обзор | Сейчас играет |
+| --- | --- |
+| ![Обзор](docs/screenshots/01-discover.png) | ![Сейчас играет](docs/screenshots/11-now-playing.png) |
+
+| Мастерская текстов | Поиск в архиве |
+| --- | --- |
+| ![Мастерская текстов](docs/screenshots/15-lyrics-workshop.png) | ![Поиск](docs/screenshots/03-search.png) |
+
+Полный набор экранов — в `docs/screenshots/`. Их создаёт сам тест:
+`node scripts/smoke.mjs --screenshot=docs/screenshots`.
+
+## Возможности
+
+### Музыка
+
+- **Обзор** — 10 подборок из открытых коллекций: джаз, блюз, раннее кантри, рэгтайм,
+  танцевальные оркестры, вальсы, рождественская классика, классика и опера, Musopen и
+  независимые лейблы (CC). Подборки появляются мгновенно из встроенного каталога, а затем
+  дополняются свежими результатами из Internet Archive.
+- **Поиск** по Internet Archive с разбивкой по страницам, ограничением по коллекциям и
+  сортировкой по популярности (в выборку попадает только `mediatype:audio`).
+- **Библиотека** — импорт файлов и папок с диска (MP3, FLAC, OGG, M4A, WAV и другие),
+  чтение тегов и обложек через `music-metadata`.
+- **Избранное, плейлисты и очередь воспроизведения** с перемешиванием и режимами повтора.
+- **Загрузки** — сохранение треков на диск для прослушивания офлайн.
+
+### Тексты песен
+
+- **Встроенный сборник** из 65 песен общественного достояния, работает без интернета.
+- **Синхронизированный LRC** с подсветкой текущей строки.
+- **Онлайн-поиск** только по вашему действию: LRCLIB (тексты и тайминги от сообщества) и
+  Wikisource (проверенные тексты в общественном достоянии).
+- **Мастерская текстов** — поиск, сравнение кандидатов, ручная правка, синхронизация по
+  клику, импорт и экспорт `.lrc`.
+
+### Интерфейс
+
+- Тёмная и светлая темы, настраиваемый акцентный цвет, четыре варианта вида списков.
+- Собственная рамка окна, полноэкранный режим «Сейчас играет», панели текста и очереди.
+- Полный справочник клавиатурных сокращений в приложении, поддержка медиа-клавиш Windows.
+
+### Приватность и безопасность
+
+- **Нет аккаунтов, нет собственных серверов, нет аналитики.** Сеть используется только для
+  запросов к открытым API Internet Archive, LRCLIB и Wikisource.
+- Изолированный рендерер: `contextIsolation`, `sandbox`, без `nodeIntegration`.
+- Локальный звук и обложки отдаются через привилегированную схему `kmedia://` со строгим
+  списком разрешённых путей — прямого доступа к `file://` у интерфейса нет.
+- Строгий CSP применяется и к собранному приложению.
+
+---
+
+## Требования
+
+| Компонент | Версия |
+| --- | --- |
+| Windows | 10 или 11, x64 |
+| Node.js | ≥ 20.19.0 (проверено на 24.x) |
+| npm | 10 или новее |
+
+Интернет нужен только для онлайн-поиска музыки и текстов; встроенный каталог и сборник
+текстов работают офлайн.
+
+---
+
+## Разработка
+
+```powershell
+git clone https://github.com/kolaars/kolaars-music.git
+cd kolaars-music
+npm install
+npm run dev
+```
+
+Если в PowerShell запрещены скрипты `.ps1`, вызывайте npm напрямую:
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run dev
+```
+
+`npm run dev` поднимает Vite с горячей заменой модулей и запускает Electron. Главный процесс
+собирается в `out/main`, прелоад — в `out/preload`, интерфейс — в `out/renderer`.
+
+Перед коммитом стоит прогнать полный набор проверок:
+
+```powershell
+npm run typecheck   # tsc для main/preload и для renderer
+npm run build       # production-сборка всех трёх процессов
+npm run smoke       # сборка + автоматический тест интерфейса
+```
+
+---
+
+## Скрипты
+
+| Команда | Что делает |
+| --- | --- |
+| `npm run dev` | Запуск приложения в режиме разработки (HMR). |
+| `npm run start` | Просмотр production-сборки через `electron-vite preview`. |
+| `npm run build` | Сборка main, preload и renderer в каталог `out/`. |
+| `npm run typecheck` | Проверка типов (`typecheck:node` + `typecheck:web`). |
+| `npm run smoke` | Сборка + автоматический smoke-тест интерфейса. |
+| `npm run tools:seed` | Готовит офлайн-кэш инструментов упаковки (запускается автоматически перед `pack`/`dist`). |
+| `npm run pack` | Сборка и упаковка распакованного приложения в `release/win-unpacked`. |
+| `npm run dist` | Дистрибутив по умолчанию (NSIS + portable). |
+| `npm run dist:win` | Дистрибутив для Windows. |
+| `npm run dist:portable` | Только портативный `.exe`. |
+| `npm run dist:nsis` | Только установщик NSIS. |
+
+Вспомогательные скрипты в `scripts/` запускаются напрямую через `node`:
+
+| Скрипт | Назначение |
+| --- | --- |
+| `node scripts/generate-icons.mjs` | Перерисовывает иконки приложения в `resources/`. |
+| `node scripts/build-seed-catalog.mjs [--per-shelf 24]` | Пересобирает `data/seed-catalog.json` из живых запросов Internet Archive. |
+| `node scripts/fetch-builder-tools.mjs [--all] [--list]` | Готовит офлайн-кэш `electron-builder`. |
+| `node scripts/smoke.mjs [--screenshot=DIR] [--keep-open]` | Smoke-тест по CDP; сохраняет экраны интерфейса. |
+
+---
+
+## Сборка дистрибутивов
+
+```powershell
+npm run dist:portable   # release/Kolaars Music-1.0.0-portable.exe
+npm run dist:nsis       # release/Kolaars Music-1.0.0-setup.exe
+```
+
+Конфигурация упаковки — `electron-builder.yml`: установщик NSIS и портативная версия для
+Windows x64, иконки из `resources/`, `data/seed-catalog.json` попадает в `resources/data/`.
+`music-metadata` исключён из архива asar (`asarUnpack`), потому что главный процесс
+загружает его динамическим `import()`.
+
+### Сборка без доступа к GitHub release-assets
+
+`electron-builder` по умолчанию скачивает дополнительные инструменты (rcedit, 7-Zip, NSIS) и
+альтернативный открытый `ffmpeg` с GitHub. В сетях, где клиент Node не может дойти до
+`release-assets.githubusercontent.com`, а `curl.exe` работает, упаковка падает с
+`RequestError`. Поэтому проект уже настроен на офлайн-путь:
+
+* `electronDist: node_modules/electron/dist` — упаковка использует Electron, распакованный
+  при `npm install`, вместо повторной загрузки zip-архива из релиза;
+* `downloadAlternateFFmpeg: false` — берётся `ffmpeg.dll` из дистрибутива Electron.
+
+Остаются инструменты правки ресурсов и сборки установщика. Их кэш проверяется и при
+необходимости скачивается по `curl.exe` с проверкой SHA-256 **автоматически** перед каждой
+командой упаковки (`tools:seed`); заранее прогреть кэш можно и вручную:
+
+```powershell
+npm run tools:seed   # rcedit, 7-Zip и NSIS → кэш electron-builder
+npm run pack         # после этого упаковка идёт без обращений к сети
+```
+
+Каталог кэша — `%LOCALAPPDATA%\electron-builder\Cache`; путь можно переопределить переменной
+окружения `ELECTRON_BUILDER_CACHE`. Если сеть до GitHub всё-таки доступна и вы хотите
+отгружать сборку без проприетарных кодеков, верните `downloadAlternateFFmpeg: true`.
+
+---
+
+## Тестирование
+
+`npm run smoke` собирает приложение, запускает настоящий Electron с включённой отладкой по
+протоколу Chrome DevTools и проверяет, что интерфейс действительно поднялся: оболочка, меню,
+подборки, воспроизведение по клику на карточку, транспорт, панель текста, панель очереди,
+экран «Сейчас играет», переходы по маршрутам, создание плейлиста, поиск по встроенному
+сборнику текстов и живой поиск в Internet Archive. Любое необработанное исключение или вызов
+`console.error` в рендерере валит тест.
+
+```powershell
+node scripts/smoke.mjs --screenshot=docs/screenshots   # сохранить экраны интерфейса
+node scripts/smoke.mjs --keep-open                       # не закрывать окно после теста
+```
+
+---
+
+## Хранение данных
+
+Всё состояние приложения — один документ `kolaars.json` в каталоге данных пользователя
+Electron (`%APPDATA%\Kolaars Music`). Он пишется **атомарно** (через временный файл и
+переименование) и с задержкой (debounce), поэтому его удобно просматривать, копировать и
+бэкапить. Рядом лежат подкаталоги `downloads/` (офлайн-загрузки) и `covers/` (обложки).
+
+В документе хранятся настройки, плейлисты, избранное, тексты, история и состояние сессии.
+Списки треков ссылаются на записи **по идентификатору**, а сами треки лежат в отдельном
+словаре и во встроенном каталоге — поэтому файл не раздувается даже на больших библиотеках.
+
+Если файл повреждён, приложение не перезаписывает его, а переименовывает в
+`kolaars.json.corrupt-<время>` и стартует с чистого состояния.
+
+---
+
+## Архитектура
+
+```
+src/
+  main/              # главный процесс (CommonJS)
+    index.ts         # окно, схема kmedia://, CSP, жизненный цикл
+    ipc.ts           # все IPC-обработчики
+    db.ts            # JSON-документ: атомарно + debounce
+    media.ts         # протокол kmedia:// со списком разрешённых путей
+    http.ts          # fetch с таймаутами, ретраями и LRU-кэшем
+    localFiles.ts    # импорт файлов и папок, чтение тегов и обложек
+    downloads.ts     # офлайн-загрузки
+    providers/       # archive.ts (Internet Archive), lyrics.ts (LRCLIB, Wikisource)
+    lyrics/pack.ts   # встроенный сборник текстов
+  preload/           # мост window.kolaars — безопасный API без Node в окне
+  renderer/src/      # React 19: state (zustand), views, components, styles
+  shared/            # доменная модель, каналы IPC, LRC, значения по умолчанию
+data/                # seed-catalog.json, lyrics-pack.json
+scripts/             # иконки, каталог, кэш упаковки, smoke-тест
+```
+
+Подробности — в [docs/architecture.md](docs/architecture.md),
+[docs/lyrics.md](docs/lyrics.md) и [docs/data.md](docs/data.md).
+
+---
+
+## Данные и лицензии
+
+**Код** распространяется под лицензией [MIT](LICENSE).
+
+**Музыка и обложки** — из Internet Archive: Great 78 Project (оцифрованные шеллачные
+пластинки, общественное достояние), Musopen (записи, переданные в общественное достояние) и
+коллекция Netlabels (Creative Commons). Приложение само ничего не распространяет: оно
+воспроизводит записи с их первоисточников и показывает ссылку и лицензию каждой записи.
+
+**Встроенный сборник текстов** (`data/lyrics-pack.json`) — тексты, опубликованные до 1931
+года и потому находящиеся в общественном достоянии США.
+
+**Онлайн-тексты** — LRCLIB и Wikisource, только по явному действию пользователя и с
+возможностью отключить их в настройках.
+
+Каждое стороннее имя и ссылка перечислены на экране «О программе» внутри приложения.
+
+---
+
+## Участие в проекте
+
+Приветствуются pull request'ы: новые подборки и записи, тексты для сборника, исправления
+интерфейса. Пожалуйста, прочитайте [CONTRIBUTING.md](CONTRIBUTING.md) и
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). О проблемах безопасности — в [SECURITY.md](SECURITY.md).
+
+История изменений — в [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## English
+
+**Kolaars Music** is an open-source Windows desktop music service: public-domain and Creative
+Commons music from the Internet Archive, paired with openly licensed lyrics (a bundled
+public-domain pack plus on-demand LRCLIB and Wikisource lookups). The user interface is in
+Russian.
+
+*Electron 44 · React 19 · TypeScript · Vite (electron-vite) · Zustand · electron-builder.*
+
+```bash
+npm install
+npm run dev            # development with HMR
+npm run typecheck      # type-check main/preload and renderer
+npm run smoke          # build + automated CDP smoke test
+npm run dist:portable  # portable Windows .exe  → release/
+npm run dist:nsis      # NSIS installer          → release/
+```
+
+* No accounts, no telemetry, no servers of our own.
+* All library data lives in a single `kolaars.json` document in Electron's `userData`
+  directory, written atomically and debounced.
+* Local audio and artwork reach the renderer only through a privileged `kmedia://` scheme
+  with an explicit path allowlist; the window runs with `contextIsolation` and `sandbox`.
+* Bundled data: `data/seed-catalog.json` (211 tracks across 10 shelves) and
+  `data/lyrics-pack.json` (65 pre-1931 songs). Both are regenerated by the scripts in
+  `scripts/`.
+* Packaging uses `electronDist: node_modules/electron/dist` and
+  `downloadAlternateFFmpeg: false`, and `scripts/fetch-builder-tools.mjs` pre-seeds
+  electron-builder's tool cache over `curl.exe` with SHA-256 verification, so builds work on
+  restricted networks.
+
+Code is MIT licensed; bundled music, artwork and lyrics keep their own licences — see
+[docs/data.md](docs/data.md).

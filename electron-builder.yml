@@ -1,0 +1,93 @@
+appId: com.kolaars.music
+productName: Kolaars Music
+copyright: Copyright © 2026 Kolaars and contributors — MIT licensed
+
+directories:
+  output: release
+  buildResources: resources
+
+# Everything the packed app needs. `out/` holds the compiled main, preload and
+# renderer bundles produced by `electron-vite build`; production dependencies
+# (`music-metadata` in particular, which is ESM-only and stays external) are
+# added to the archive automatically by electron-builder.
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+  - '!**/{.eslintrc,.editorconfig,.gitignore,.npmrc}'
+
+# Files read from `process.resourcesPath` at runtime: the application icon and
+# the offline seed catalog. The lyrics pack is imported directly by the main
+# bundle, so it does not need to be shipped separately.
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - '**/*'
+  - from: data/seed-catalog.json
+    to: data/seed-catalog.json
+
+# `music-metadata` is loaded with a dynamic `import()` from the CommonJS main
+# process; keep it outside the archive so Node's ESM loader never has to look
+# inside it.
+asar: true
+asarUnpack:
+  - node_modules/music-metadata/**
+
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+
+# Drops Electron's stub `default_app.asar` that electronDist-based packaging
+# leaves behind (see the script for the details).
+afterPack: scripts/after-pack.cjs
+
+# Package against the Electron runtime that `npm install` already unpacked into
+# node_modules instead of re-downloading the release zip. This keeps builds
+# reproducible and makes packaging work on networks where the Node HTTPS client
+# cannot reach GitHub's release-assets host.
+#
+# The alternate (patent-free) ffmpeg lives in the Electron GitHub release as
+# well. The default `true` would need that download, so we keep Electron's own
+# bundled ffmpeg.dll instead. Set it back to `true` when github.com is reachable
+# if you want to ship the build without proprietary codecs.
+electronDist: node_modules/electron/dist
+downloadAlternateFFmpeg: false
+
+win:
+  icon: resources/icon.ico
+  executableName: Kolaars Music
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Kolaars Music
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-${version}-setup.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+# Linux/macOS are not officially shipped yet, but the same build works there.
+linux:
+  category: AudioVideo;Audio;Player
+  icon: resources/icon-256.png
+  target:
+    - AppImage
+
+mac:
+  category: public.app-category.music
+  icon: resources/icon-256.png
+  target:
+    - dmg

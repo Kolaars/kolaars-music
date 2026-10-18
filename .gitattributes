@@ -1,0 +1,20 @@
+# Normalise line endings in the repository (see .editorconfig).
+* text=auto eol=lf
+
+# Windows-only tooling that expects CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets.
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.zip binary
+*.exe binary
+
+# Keep lock files and data diffs readable, but never treat them as prose.
+package-lock.json -diff linguist-generated
+data/seed-catalog.json linguist-generated=true
+data/lyrics-pack.json linguist-generated=true

@@ -1,0 +1,70 @@
+{
+  "name": "kolaars-music",
+  "version": "1.0.0",
+  "description": "Open-source desktop music player: a catalog of public-domain & openly licensed music, with synced lyrics.",
+  "productName": "Kolaars Music",
+  "author": {
+    "name": "Kolaars",
+    "email": "kolaars@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/kolaars/kolaars-music",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kolaars/kolaars-music.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kolaars/kolaars-music/issues"
+  },
+  "keywords": [
+    "music",
+    "player",
+    "lyrics",
+    "lrc",
+    "electron",
+    "public-domain",
+    "creative-commons",
+    "internet-archive",
+    "open-source"
+  ],
+  "private": false,
+  "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "smoke": "npm run build && node scripts/smoke.mjs",
+    "tools:seed": "node scripts/fetch-builder-tools.mjs",
+    "pack": "npm run build && npm run tools:seed && electron-builder --dir",
+    "dist": "npm run build && npm run tools:seed && electron-builder",
+    "dist:win": "npm run build && npm run tools:seed && electron-builder --win",
+    "dist:portable": "npm run build && npm run tools:seed && electron-builder --win portable",
+    "dist:nsis": "npm run build && npm run tools:seed && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "music-metadata": "^12.2.2",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4"
+  },
+  "allowScripts": {
+    "electron-winstaller": false
+  }
+}
