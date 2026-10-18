@@ -10,7 +10,7 @@
 import { app, BrowserWindow, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import { EV, type MediaCommand } from '@shared/ipc'
 
-const REPO_URL = 'https://github.com/kolaars/kolaars-music'
+const REPO_URL = 'https://github.com/Kolaars/kolaars-music'
 
 export function buildAppMenu(getWindow: () => BrowserWindow | null): void {
   const command = (name: MediaCommand): (() => void) => () => {

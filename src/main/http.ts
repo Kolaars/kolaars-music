@@ -40,7 +40,7 @@ export function clearHttpCache(): void {
 }
 
 const UA =
-  'KolaarsMusic/1.0 (+https://github.com/kolaars/kolaars-music; open-source music player)'
+  'KolaarsMusic/1.0 (+https://github.com/Kolaars/kolaars-music; open-source music player)'
 
 async function rawFetch(url: string, opts: HttpOptions = {}): Promise<Response> {
   const { timeoutMs = 20_000, retries = 2, headers } = opts

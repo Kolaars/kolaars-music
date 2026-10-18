@@ -23,7 +23,7 @@ const LINKS = [
   { label: 'Musopen', url: 'https://musopen.org' },
   { label: 'LRCLIB', url: 'https://lrclib.net' },
   { label: 'Wikisource', url: 'https://en.wikisource.org' },
-  { label: 'Исходный код на GitHub', url: 'https://github.com/kolaars/kolaars-music' }
+  { label: 'Исходный код на GitHub', url: 'https://github.com/Kolaars/kolaars-music' }
 ]
 
 export function AboutView(): JSX.Element {

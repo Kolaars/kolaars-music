@@ -8,13 +8,13 @@
     "email": "kolaars@users.noreply.github.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/kolaars/kolaars-music",
+  "homepage": "https://github.com/Kolaars/kolaars-music",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kolaars/kolaars-music.git"
+    "url": "git+https://github.com/Kolaars/kolaars-music.git"
   },
   "bugs": {
-    "url": "https://github.com/kolaars/kolaars-music/issues"
+    "url": "https://github.com/Kolaars/kolaars-music/issues"
   },
   "keywords": [
     "music",

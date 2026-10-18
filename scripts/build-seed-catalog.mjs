@@ -43,7 +43,7 @@ const SHELVES = [
 ]
 
 const FIELDS = ['identifier', 'title', 'creator', 'year', 'date', 'genre', 'subject', 'licenseurl', 'collection', 'downloads']
-const UA = 'KolaarsMusic-seed/1.0 (+https://github.com/kolaars/kolaars-music)'
+const UA = 'KolaarsMusic-seed/1.0 (+https://github.com/Kolaars/kolaars-music)'
 
 const AUDIO_RANK = { 'VBR MP3': 0, MP3: 1, '128Kbps MP3': 2, 'Ogg Vorbis': 3, Flac: 4, '24bit Flac': 5 }
 

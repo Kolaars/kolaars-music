@@ -118,7 +118,7 @@ Kolaars Music — настольное приложение-музыкальны
 ## Разработка
 
 ```powershell
-git clone https://github.com/kolaars/kolaars-music.git
+git clone https://github.com/Kolaars/kolaars-music.git
 cd kolaars-music
 npm install
 npm run dev

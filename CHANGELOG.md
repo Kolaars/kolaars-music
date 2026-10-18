@@ -70,5 +70,5 @@
   отдельный smoke-тест собранного приложения (`npm run smoke:packaged`), который проверяет
   загрузку из `app.asar`, чтение тегов и воспроизведение локального файла через `kmedia://`.
 
-[1.1.0]: https://github.com/kolaars/kolaars-music/releases/tag/v1.1.0
-[1.0.0]: https://github.com/kolaars/kolaars-music/releases/tag/v1.0.0
+[1.1.0]: https://github.com/Kolaars/kolaars-music/releases/tag/v1.1.0
+[1.0.0]: https://github.com/Kolaars/kolaars-music/releases/tag/v1.0.0
