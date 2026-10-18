@@ -2,6 +2,7 @@
 
 import { useState, type JSX } from 'react'
 import type { Profile, ThemeMode } from '@shared/types'
+import { DEFAULT_FORMAT_PRIORITY } from '@shared/defaults'
 import { api } from '../lib/api'
 import { useApp } from '../state/store'
 import { Page, PageHeader } from '../components/Page'
@@ -206,6 +207,14 @@ export function SettingsView(): JSX.Element {
         </Field>
       </SectionCard>
 
+      <SectionCard
+        icon="music"
+        title="Формат файлов"
+        description="Какой файл оставить, если одна и та же песня лежит на диске в нескольких форматах"
+      >
+        <FormatPriorityList />
+      </SectionCard>
+
       <SectionCard icon="shield" title="Правовая информация" description="Лицензии, источники и благодарности">
         <Field label="Код приложения" hint="Kolaars Music распространяется под лицензией MIT">
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRoute({ name: 'about' })}>
@@ -215,6 +224,96 @@ export function SettingsView(): JSX.Element {
         </Field>
       </SectionCard>
     </Page>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Format priority                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Human names for the containers the app can read. */
+const FORMAT_LABELS: Record<string, string> = {
+  '.flac': 'FLAC — без потерь',
+  '.wav': 'WAV — без потерь',
+  '.aiff': 'AIFF — без потерь',
+  '.aif': 'AIFF — без потерь',
+  '.ape': 'Monkey’s Audio — без потерь',
+  '.wv': 'WavPack — без потерь',
+  '.m4a': 'M4A / AAC',
+  '.m4b': 'M4B / AAC — аудиокнига',
+  '.opus': 'Opus',
+  '.ogg': 'OGG Vorbis',
+  '.oga': 'OGG Audio',
+  '.mp3': 'MP3',
+  '.aac': 'AAC',
+  '.wma': 'WMA',
+  '.mpc': 'Musepack'
+}
+
+/**
+ * The order in which local formats win. A folder downloaded from a music
+ * service usually holds the same song as `.flac` and as `.m4a`; the importer
+ * keeps whichever comes first here and leaves the other file on disk untouched.
+ */
+function FormatPriorityList(): JSX.Element {
+  const priority = useApp((state) => state.settings.formatPriority ?? DEFAULT_FORMAT_PRIORITY)
+  const updateSettings = useApp((state) => state.updateSettings)
+
+  const move = (index: number, delta: number): void => {
+    const next = [...priority]
+    const target = index + delta
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    void updateSettings({ formatPriority: next })
+  }
+
+  return (
+    <>
+      <ol className="formatlist">
+        {priority.map((extension, index) => (
+          <li key={extension} className="formatlist__row">
+            <span className="formatlist__rank">{index + 1}</span>
+            <span className="formatlist__name">{FORMAT_LABELS[extension] ?? extension}</span>
+            <span className="formatlist__ext">{extension}</span>
+            <button
+              type="button"
+              className="iconbtn iconbtn--sm"
+              title="Выше"
+              disabled={index === 0}
+              onClick={() => move(index, -1)}
+            >
+              <Icon name="chevron-up" size={15} />
+            </button>
+            <button
+              type="button"
+              className="iconbtn iconbtn--sm"
+              title="Ниже"
+              disabled={index === priority.length - 1}
+              onClick={() => move(index, 1)}
+            >
+              <Icon name="chevron-down" size={15} />
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      <div className="field__row">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          onClick={() => void updateSettings({ formatPriority: [...DEFAULT_FORMAT_PRIORITY] })}
+        >
+          <Icon name="refresh" size={15} />
+          Вернуть порядок по умолчанию
+        </button>
+      </div>
+
+      <p className="page__note">
+        При импорте папки на каждую песню остаётся только лучший по этому списку файл: остальные не
+        попадают в библиотеку, но и не удаляются с диска. Уже добавленные треки приложение не
+        подменяет — иначе разъехались бы плейлисты и избранное.
+      </p>
+    </>
   )
 }
 

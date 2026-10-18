@@ -11,6 +11,39 @@ export const PROFILES_VERSION = 1
 /** Name given to the profile that adopts a pre-profiles installation. */
 export const DEFAULT_PROFILE_NAME = 'Основной'
 
+/**
+ * Which local file to keep when the same song is on disk in several formats,
+ * best first. Lossless containers lead, then the compact ones, roughly in the
+ * order of what they carry per megabyte. The user can reorder this in Settings.
+ */
+export const DEFAULT_FORMAT_PRIORITY = [
+  '.flac',
+  '.wav',
+  '.aiff',
+  '.aif',
+  '.ape',
+  '.wv',
+  '.m4a',
+  '.m4b',
+  '.opus',
+  '.ogg',
+  '.oga',
+  '.mp3',
+  '.aac',
+  '.wma',
+  '.mpc'
+]
+
+/**
+ * Position of a file extension in the priority list — 0 is the best. Formats
+ * the user did not list sort after every listed one, alphabetically among
+ * themselves, so an unknown extension never silently outranks a known one.
+ */
+export function formatRank(extension: string, priority: readonly string[] = DEFAULT_FORMAT_PRIORITY): number {
+  const index = priority.indexOf(extension.toLowerCase())
+  return index === -1 ? priority.length : index
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   accent: '#7c5cff',
@@ -26,7 +59,8 @@ export const DEFAULT_SETTINGS: Settings = {
   normalizeLoudness: false,
   downloadDir: '',
   volumeTrim: 0,
-  notifications: true
+  notifications: true,
+  formatPriority: [...DEFAULT_FORMAT_PRIORITY]
 }
 
 export const DEFAULT_SESSION: SessionState = {

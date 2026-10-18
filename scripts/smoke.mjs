@@ -730,14 +730,21 @@ async function main() {
         ['Aarne, BUSHIDO ZHO - SOS.flac', 'Aarne, BUSHIDO ZHO', 'SOS', 'Aarne, BUSHIDO ZHO - SOS.flac.cover.jpg'],
         ['Нервы - Батареи.flac', 'Нервы', 'Батареи', 'Нервы - Батареи.jpg'],
         // A dash inside the title must not be mistaken for a second separator.
-        ['Mckyyy - Roi - Instrumental Slowed.m4a', 'Mckyyy', 'Roi - Instrumental Slowed', null]
+        ['Mckyyy - Roi - Instrumental Slowed.m4a', 'Mckyyy', 'Roi - Instrumental Slowed', null],
+        // Windows forbids "?" in a file name, so the downloader wrote "_".
+        ['Locked23 - What Is 23_.flac', 'Locked23', 'What Is 23?', null]
       ]
+      // The same song as the second fixture in a format the default priority
+      // ranks lower. It must be reported, not added, and left on disk.
+      const lowerFormat = 'Нервы - Батареи.m4a'
+
       for (const [name] of fixtures) writeFileSync(path.join(fixtureDir, name), 'not really audio')
+      writeFileSync(path.join(fixtureDir, lowerFormat), 'not really audio')
       // The two conventions seen in the wild, neither of them embedded.
       writeFileSync(path.join(fixtureDir, fixtures[0][3]), 'cover')
       writeFileSync(path.join(fixtureDir, fixtures[1][3]), 'cover')
 
-      const paths = fixtures.map(([name]) => path.join(fixtureDir, name))
+      const paths = [...fixtures.map(([name]) => path.join(fixtureDir, name)), path.join(fixtureDir, lowerFormat)]
       const result = await cdp.evaluate(`(async () => {
         /* kmedia://local/<base64url of the path>: decode it without Buffer. */
         const decode = (url) => {
@@ -757,7 +764,12 @@ async function main() {
             title: track.title,
             cover: track.artwork ? decode(track.artwork) : null
           }))
-        return { imported: imported.tracks.length, failed: imported.failed.length, rows }
+        return {
+          imported: imported.tracks.length,
+          failed: imported.failed.length,
+          duplicates: imported.duplicates,
+          rows
+        }
       })()`)
 
       const byFile = new Map(result.rows.map((row) => [path.basename(row.file), row]))
@@ -779,6 +791,22 @@ async function main() {
       process.stdout.write(
         `${ok ? paint(32, '  ok  ') : paint(31, ' FAIL ')} untagged downloads import with names and sidecar covers (${derived}/${fixtures.length})\n`
       )
+
+      /* The lower-ranked copy of a song must lose to the one already imported. */
+      const duplicate = result.duplicates?.[0]
+      const keptName = duplicate ? path.basename(duplicate.kept) : null
+      const skippedName = duplicate ? path.basename(duplicate.path) : null
+      const deduped =
+        result.imported === fixtures.length &&
+        result.duplicates?.length === 1 &&
+        skippedName === lowerFormat &&
+        keptName === fixtures[1][0] &&
+        !result.rows.some((row) => path.basename(row.file) === lowerFormat)
+      process.stdout.write(
+        `${deduped ? paint(32, '  ok  ') : paint(31, ' FAIL ')} a second format of the same song is reported, not added` +
+          `${deduped ? '' : ` — imported ${result.imported}, duplicates ${JSON.stringify(result.duplicates)}`}\n`
+      )
+      if (!deduped) failures.push('duplicate formats were not collapsed on import')
     } catch (error) {
       failures.push(`local import of untagged downloads: ${error.message}`)
       process.stdout.write(`${paint(31, ' FAIL ')} local import of untagged downloads (${error.message})\n`)

@@ -702,11 +702,18 @@ async function runImport(
 
     const imported = outcome.tracks.length
     const withLyrics = outcome.lyrics.length
+    const duplicates = outcome.duplicates?.length ?? 0
     if (imported === 0) {
-      get().toast('Аудиофайлы не найдены', 'error')
+      get().toast(
+        duplicates > 0
+          ? `Новых файлов нет: ${duplicates} уже есть в библиотеке в лучшем формате`
+          : 'Аудиофайлы не найдены',
+        duplicates > 0 ? 'info' : 'error'
+      )
     } else {
       const parts = [`Импортировано ${imported}`]
       if (withLyrics > 0) parts.push(`текстов: ${withLyrics}`)
+      if (duplicates > 0) parts.push(`дубликатов пропущено: ${duplicates}`)
       if (outcome.failed.length > 0) parts.push(`ошибок: ${outcome.failed.length}`)
       get().toast(parts.join(' · '), 'success')
     }

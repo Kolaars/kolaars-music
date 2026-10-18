@@ -7,20 +7,25 @@
  * audio file is imported automatically — the standard way people ship synced
  * lyrics with their own music.
  *
- * Output of music downloaders needs two extra concessions, both handled here.
+ * Output of music downloaders needs three extra concessions, all handled here.
  * Such files frequently carry no tags whatsoever and are only named
  * "Artist - Title", so the file name is parsed for names when the tags are
- * silent. And the cover usually sits *next to* the track as its own image file
+ * silent — and the underscores that stand in for characters Windows forbids are
+ * restored. The cover usually sits *next to* the track as its own image file
  * rather than inside it, under one of a few naming conventions, so those are
- * picked up too. Neither trick overrides a real tag: they only fill gaps.
+ * picked up too. Neither trick overrides a real tag: they only fill gaps. And
+ * because such a folder happily holds one song in several formats at once, the
+ * import keeps only the best-ranked one of each.
  */
 
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { allowMediaPath, encodeMediaUrl } from './media'
-import { coversDir, userDataDir } from './db'
+import { coversDir, loadDb, userDataDir } from './db'
 import { findSidecarCover } from './sidecarCover'
+import { DEFAULT_FORMAT_PRIORITY, formatRank } from '@shared/defaults'
+import { restoreForbiddenCharacters } from '@shared/fileNames'
 import { parseLrc } from '@shared/lrc'
 import { parseArtistTitle } from '@shared/tracklist'
 import type { Lyrics, Track } from '@shared/types'
@@ -52,6 +57,17 @@ export interface ImportOutcome {
   lyrics: Lyrics[]
   skipped: string[]
   failed: { path: string; error: string }[]
+  /** Files left out because the same song is already there in a better format. */
+  duplicates: { path: string; kept: string }[]
+}
+
+/**
+ * What makes two files the same song: the file name without the extension.
+ * Downloaders write every format of a track under one name and differ only in
+ * the extension, so this is what survives switching formats.
+ */
+function songKey(filePath: string): string {
+  return path.basename(filePath, path.extname(filePath)).toLowerCase()
 }
 
 function localTrackId(filePath: string): string {
@@ -178,10 +194,11 @@ export async function importAudioFile(filePath: string): Promise<{ track: Track;
 
   // Downloader output frequently carries no tags at all and is only named
   // "Исполнитель - Название", so the file name is parsed as a fallback. It
-  // never overrides a tag that is actually present.
+  // never overrides a tag that is actually present. Underscores that stand in
+  // for characters Windows forbids are restored on the way.
   const fromName = parseArtistTitle(baseName)
-  if (fromName.title) track.title = fromName.title
-  if (fromName.artist) track.artist = fromName.artist
+  if (fromName.title) track.title = restoreForbiddenCharacters(fromName.title)
+  if (fromName.artist) track.artist = restoreForbiddenCharacters(fromName.artist)
 
   const mm = await loadMusicMetadata()
   if (mm) {
@@ -274,22 +291,50 @@ export async function importPaths(
   }
 
   const unique = Array.from(new Set(files.map((f) => path.resolve(f))))
+
+  // Best format first, so of two copies of a song the preferred one gets in.
+  const db = await loadDb()
+  const priority = db.settings.formatPriority ?? DEFAULT_FORMAT_PRIORITY
+  unique.sort((a, b) => {
+    const byFormat = formatRank(path.extname(a), priority) - formatRank(path.extname(b), priority)
+    return byFormat !== 0 ? byFormat : a.localeCompare(b, undefined, { numeric: true })
+  })
+
+  // Every local file already in the library claims its song, so importing the
+  // same folder twice — or adding a second format of a track — changes nothing.
+  const kept = new Map<string, string>()
+  for (const track of Object.values(db.tracks)) {
+    if (track.source === 'local' && track.filePath) kept.set(songKey(track.filePath), track.filePath)
+  }
+
   const tracks: Track[] = []
   const lyrics: Lyrics[] = []
   const failed: { path: string; error: string }[] = []
+  const duplicates: { path: string; kept: string }[] = []
 
   let done = 0
   for (const file of unique) {
-    try {
-      const result = await importAudioFile(file)
-      tracks.push(result.track)
-      if (result.lyrics) lyrics.push(result.lyrics)
-    } catch (err) {
-      failed.push({ path: file, error: (err as Error).message })
+    const key = songKey(file)
+    const existing = kept.get(key)
+
+    if (existing && path.resolve(existing) !== file) {
+      // The same song, another format. The library keeps the one it already has
+      // — never a silent replacement, which would break playlists and favourites.
+      duplicates.push({ path: file, kept: existing })
+    } else {
+      try {
+        const result = await importAudioFile(file)
+        tracks.push(result.track)
+        if (result.lyrics) lyrics.push(result.lyrics)
+        kept.set(key, file)
+      } catch (err) {
+        failed.push({ path: file, error: (err as Error).message })
+      }
     }
+
     done++
     onProgress?.(done, unique.length, path.basename(file))
   }
 
-  return { tracks, lyrics, skipped, failed }
+  return { tracks, lyrics, skipped, failed, duplicates }
 }

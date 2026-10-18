@@ -160,6 +160,11 @@ export interface Settings {
   volumeTrim: number
   /** Show a desktop notification when the track changes. */
   notifications: boolean
+  /**
+   * Order in which local formats are preferred, best first. When the same song
+   * sits on disk in several formats, only the highest ranked one is imported.
+   */
+  formatPriority: string[]
 }
 
 /* ------------------------------------------------------------------ */

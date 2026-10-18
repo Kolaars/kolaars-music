@@ -67,6 +67,8 @@ export interface ImportOutcome {
   lyrics: Lyrics[]
   skipped: string[]
   failed: { path: string; error: string }[]
+  /** Files left out because the same song is already there in a better format. */
+  duplicates: { path: string; kept: string }[]
 }
 
 export interface AppInfo {
