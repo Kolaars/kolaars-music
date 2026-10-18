@@ -96,6 +96,9 @@ jobs:
       - name: Build installers
         run: npm run dist:win
 
+      - name: Smoke-test the packaged app
+        run: npm run smoke:packaged
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

@@ -74,10 +74,13 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Kolaars Music
   deleteAppDataOnUninstall: false
-  artifactName: ${productName}-${version}-setup.${ext}
+  # Hyphenated on purpose: electron-builder writes the *sanitised* name into
+  # latest.yml (spaces → hyphens), so an artifactName with spaces would make the
+  # file on disk and the update metadata disagree.
+  artifactName: ${name}-${version}-setup.${ext}
 
 portable:
-  artifactName: ${productName}-${version}-portable.${ext}
+  artifactName: ${name}-${version}-portable.${ext}
 
 # Linux/macOS are not officially shipped yet, but the same build works there.
 linux:

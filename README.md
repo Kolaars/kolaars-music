@@ -137,6 +137,7 @@ npm run smoke       # сборка + автоматический тест ин�
 | `npm run build` | Сборка main, preload и renderer в каталог `out/`. |
 | `npm run typecheck` | Проверка типов (`typecheck:node` + `typecheck:web`). |
 | `npm run smoke` | Сборка + автоматический smoke-тест интерфейса. |
+| `npm run smoke:packaged` | Smoke-тест **упакованного** приложения из `release/win-unpacked`. |
 | `npm run tools:seed` | Готовит офлайн-кэш инструментов упаковки (запускается автоматически перед `pack`/`dist`). |
 | `npm run pack` | Сборка и упаковка распакованного приложения в `release/win-unpacked`. |
 | `npm run dist` | Дистрибутив по умолчанию (NSIS + portable). |
@@ -152,14 +153,15 @@ npm run smoke       # сборка + автоматический тест ин�
 | `node scripts/build-seed-catalog.mjs [--per-shelf 24]` | Пересобирает `data/seed-catalog.json` из живых запросов Internet Archive. |
 | `node scripts/fetch-builder-tools.mjs [--all] [--list]` | Готовит офлайн-кэш `electron-builder`. |
 | `node scripts/smoke.mjs [--screenshot=DIR] [--keep-open]` | Smoke-тест по CDP; сохраняет экраны интерфейса. |
+| `node scripts/smoke-packaged.mjs [--exe=PATH] [--screenshot=DIR]` | Smoke-тест собранного приложения (asar, `kmedia://`, локальный импорт). |
 
 ---
 
 ## Сборка дистрибутивов
 
 ```powershell
-npm run dist:portable   # release/Kolaars Music-1.0.0-portable.exe
-npm run dist:nsis       # release/Kolaars Music-1.0.0-setup.exe
+npm run dist:portable   # release/kolaars-music-1.0.0-portable.exe
+npm run dist:nsis       # release/kolaars-music-1.0.0-setup.exe
 ```
 
 Конфигурация упаковки — `electron-builder.yml`: установщик NSIS и портативная версия для
@@ -205,6 +207,17 @@ npm run pack         # после этого упаковка идёт без о
 ```powershell
 node scripts/smoke.mjs --screenshot=docs/screenshots   # сохранить экраны интерфейса
 node scripts/smoke.mjs --keep-open                       # не закрывать окно после теста
+```
+
+Отдельно проверяется то, что не может проверить запуск из исходников, — сам
+**упакованный** артефакт. `npm run smoke:packaged` открывает `release/win-unpacked`, убеждается,
+что интерфейс загрузился из `app.asar`, что `music-metadata` разрешается из распакованного
+архива (теги и длительность локального файла), что боковой `.lrc` импортировался и что
+привилегированная схема `kmedia://` действительно проигрывает локальный файл:
+
+```powershell
+npm run pack                    # собрать release/win-unpacked
+npm run smoke:packaged          # или: node scripts/smoke-packaged.mjs --exe=PATH
 ```
 
 ---
@@ -294,6 +307,7 @@ npm install
 npm run dev            # development with HMR
 npm run typecheck      # type-check main/preload and renderer
 npm run smoke          # build + automated CDP smoke test
+npm run smoke:packaged # verify the packaged artefact in release/win-unpacked
 npm run dist:portable  # portable Windows .exe  → release/
 npm run dist:nsis      # NSIS installer          → release/
 ```

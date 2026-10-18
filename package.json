@@ -40,6 +40,7 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "smoke": "npm run build && node scripts/smoke.mjs",
+    "smoke:packaged": "node scripts/smoke-packaged.mjs",
     "tools:seed": "node scripts/fetch-builder-tools.mjs",
     "pack": "npm run build && npm run tools:seed && electron-builder --dir",
     "dist": "npm run build && npm run tools:seed && electron-builder",
