@@ -8,9 +8,16 @@
 
 import { create } from 'zustand'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
+import { parseTrackList, type ImportListOutcome, type PlaylistFileFormat } from '@shared/tracklist'
 import type { Playlist, Profile, Settings, Track } from '@shared/types'
 import { api, errorMessage } from '../lib/api'
 import type { AppInfo, DownloadRecord, ShelfDescriptor } from '../../../preload/index'
+
+/** Result of importing a track list: what was found, and the new playlist. */
+export interface TrackListImportResult {
+  outcome: ImportListOutcome
+  playlist: Playlist | null
+}
 
 export type Route =
   | { name: 'discover' }
@@ -108,6 +115,20 @@ interface AppState {
   importFiles: () => Promise<void>
   importFolder: () => Promise<void>
 
+  /** Whether the "import a track list" dialog is open. */
+  importListOpen: boolean
+  setImportListOpen: (open: boolean) => void
+  /** Parses a pasted list, resolves it, and stores it as a playlist. */
+  runTrackListImport: (options: {
+    text: string
+    name: string
+    searchArchive: boolean
+    fetchLyrics: boolean
+  }) => Promise<TrackListImportResult | null>
+
+  /** Writes a playlist to disk as M3U8, CSV or JSON. */
+  exportPlaylist: (id: string, format: PlaylistFileFormat) => Promise<void>
+
   refreshDownloads: () => Promise<void>
   startDownload: (track: Track) => Promise<void>
   cancelDownload: (trackId: string) => Promise<void>
@@ -190,6 +211,7 @@ export const useApp = create<AppState>((set, get) => ({
   shelves: [],
   downloads: [],
   importProgress: null,
+  importListOpen: false,
 
   route: { name: 'discover' },
   routeStack: [],
@@ -471,6 +493,47 @@ export const useApp = create<AppState>((set, get) => ({
     const folder = await api.local.pickFolder()
     if (!folder) return
     await runImport([folder], set, get)
+  },
+
+  setImportListOpen: (open) => set({ importListOpen: open }),
+
+  runTrackListImport: async ({ text, name, searchArchive, fetchLyrics }) => {
+    const entries = parseTrackList(text)
+    if (entries.length === 0) {
+      get().toast('Не удалось разобрать список — нужны строки «Исполнитель — Название»', 'error')
+      return null
+    }
+
+    try {
+      const outcome = await api.tracklist.run({ entries, searchArchive, fetchLyrics })
+
+      // Refresh first: the new tracks must be in the catalog before the
+      // playlist can reference them.
+      await get().refreshLibrary()
+
+      const tracks = outcome.trackIds
+        .map((id) => get().catalogIndex.get(id))
+        .filter((track): track is Track => Boolean(track))
+      if (tracks.length) get().cacheTracks(tracks)
+
+      const playlist = await get().createPlaylist(name.trim() || 'Импортированный список', tracks)
+      return { outcome, playlist }
+    } catch (error) {
+      get().toast(`Импорт списка не удался: ${errorMessage(error)}`, 'error')
+      return null
+    } finally {
+      set({ importProgress: null })
+    }
+  },
+
+  exportPlaylist: async (id, format) => {
+    try {
+      const written = await api.playlists.exportFile(id, format)
+      if (!written) return
+      get().toast(`Экспортировано треков: ${written.count}`, 'success')
+    } catch (error) {
+      get().toast(`Не удалось экспортировать: ${errorMessage(error)}`, 'error')
+    }
   },
 
   /* ---------------------------- downloads ------------------------- */

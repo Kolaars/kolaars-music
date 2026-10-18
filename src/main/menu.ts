@@ -59,6 +59,11 @@ export function buildAppMenu(getWindow: () => BrowserWindow | null): void {
           accelerator: 'CmdOrCtrl+Shift+O',
           click: () => getWindow()?.webContents.send(EV.mediaCommand, 'import-folder')
         },
+        {
+          label: 'Импортировать список треков…',
+          accelerator: 'CmdOrCtrl+Shift+L',
+          click: () => getWindow()?.webContents.send(EV.mediaCommand, 'import-list')
+        },
         { type: 'separator' },
         {
           label: 'Новый плейлист',

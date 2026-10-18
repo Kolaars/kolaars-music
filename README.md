@@ -58,8 +58,21 @@ Kolaars Music — настольное приложение-музыкальны
   сортировкой по популярности (в выборку попадает только `mediatype:audio`).
 - **Библиотека** — импорт файлов и папок с диска (MP3, FLAC, OGG, M4A, WAV и другие),
   чтение тегов и обложек через `music-metadata`.
+- **Импорт списка треков** — вставьте список «Исполнитель — Название» или откройте
+  `.txt`/`.csv`/`.m3u` из другого сервиса. Каждая строка сопоставляется с вашей библиотекой,
+  затем (по желанию) с открытым архивом и LRCLIB, и сохраняется плейлистом.
+- **Экспорт плейлиста** в M3U8, CSV или JSON — чтобы перенести список в другой сервис или
+  открыть в таблице.
 - **Избранное, плейлисты и очередь воспроизведения** с перемешиванием и режимами повтора.
 - **Загрузки** — сохранение треков на диск для прослушивания офлайн.
+
+### Профили
+
+- **Несколько независимых библиотек на одном компьютере.** У каждого профиля свои треки,
+  плейлисты, избранное, тексты, обложки и офлайн-загрузки — целиком в отдельной папке.
+- Переключение, создание, переименование и удаление на экране «Настройки»; единственный
+  профиль удалить нельзя.
+- Это **не аккаунты**: вход, пароль и сеть не нужны, данные не покидают компьютер.
 
 ### Тексты песен
 
@@ -80,6 +93,8 @@ Kolaars Music — настольное приложение-музыкальны
 
 - **Нет аккаунтов, нет собственных серверов, нет аналитики.** Сеть используется только для
   запросов к открытым API Internet Archive, LRCLIB и Wikisource.
+- **Профили полностью локальны.** Несколько независимых библиотек на одном компьютере; ни
+  регистрации, ни пароля, ни обмена данными между устройствами.
 - Изолированный рендерер: `contextIsolation`, `sandbox`, без `nodeIntegration`.
 - Локальный звук и обложки отдаются через привилегированную схему `kmedia://` со строгим
   списком разрешённых путей — прямого доступа к `file://` у интерфейса нет.
@@ -136,6 +151,7 @@ npm run smoke       # сборка + автоматический тест ин�
 | `npm run start` | Просмотр production-сборки через `electron-vite preview`. |
 | `npm run build` | Сборка main, preload и renderer в каталог `out/`. |
 | `npm run typecheck` | Проверка типов (`typecheck:node` + `typecheck:web`). |
+| `npm run test:tracklist` | Юнит-проверки разбора списков треков и экспорта плейлистов. |
 | `npm run smoke` | Сборка + автоматический smoke-тест интерфейса. |
 | `npm run smoke:packaged` | Smoke-тест **упакованного** приложения из `release/win-unpacked`. |
 | `npm run tools:seed` | Готовит офлайн-кэш инструментов упаковки (запускается автоматически перед `pack`/`dist`). |
@@ -160,8 +176,8 @@ npm run smoke       # сборка + автоматический тест ин�
 ## Сборка дистрибутивов
 
 ```powershell
-npm run dist:portable   # release/kolaars-music-1.0.0-portable.exe
-npm run dist:nsis       # release/kolaars-music-1.0.0-setup.exe
+npm run dist:portable   # release/kolaars-music-1.1.0-portable.exe
+npm run dist:nsis       # release/kolaars-music-1.1.0-setup.exe
 ```
 
 Конфигурация упаковки — `electron-builder.yml`: установщик NSIS и портативная версия для
@@ -197,6 +213,11 @@ npm run pack         # после этого упаковка идёт без о
 
 ## Тестирование
 
+`npm run test:tracklist` проверяет чистую логику импорта — разбор строк, CSV с заголовком,
+M3U, нормализацию для сопоставления и круговорот «экспорт → импорт». Тесты запускают
+настоящий модуль `src/shared/tracklist.ts` (он компилируется во временный каталог), а не его
+копию, и не требуют Electron.
+
 `npm run smoke` собирает приложение, запускает настоящий Electron с включённой отладкой по
 протоколу Chrome DevTools и проверяет, что интерфейс действительно поднялся: оболочка, меню,
 подборки, воспроизведение по клику на карточку, транспорт, панель текста, панель очереди,
@@ -224,10 +245,16 @@ npm run smoke:packaged          # или: node scripts/smoke-packaged.mjs --exe=
 
 ## Хранение данных
 
-Всё состояние приложения — один документ `kolaars.json` в каталоге данных пользователя
-Electron (`%APPDATA%\Kolaars Music`). Он пишется **атомарно** (через временный файл и
+Всё состояние приложения — один документ `kolaars.json` внутри каталога **профиля** в
+`%APPDATA%\Kolaars Music\profiles\<id>\`. Он пишется **атомарно** (через временный файл и
 переименование) и с задержкой (debounce), поэтому его удобно просматривать, копировать и
-бэкапить. Рядом лежат подкаталоги `downloads/` (офлайн-загрузки) и `covers/` (обложки).
+бэкапить. Рядом лежат подкаталоги `downloads/` (офлайн-загрузки) и `covers/` (обложки) —
+то есть профиль целиком переносится копированием одной папки.
+
+Список профилей и активный профиль хранит небольшой реестр `profiles.json` в корне
+каталога данных. Если каталог остался от версии без профилей (файл `kolaars.json` лежал в
+корне), при первом запуске он переносится в профиль «Основной» — существующая библиотека не
+теряется.
 
 В документе хранятся настройки, плейлисты, избранное, тексты, история и состояние сессии.
 Списки треков ссылаются на записи **по идентификатору**, а сами треки лежат в отдельном
@@ -249,14 +276,15 @@ src/
     media.ts         # протокол kmedia:// со списком разрешённых путей
     http.ts          # fetch с таймаутами, ретраями и LRU-кэшем
     localFiles.ts    # импорт файлов и папок, чтение тегов и обложек
+    importList.ts    # сопоставление вставленного списка треков с источниками
     downloads.ts     # офлайн-загрузки
     providers/       # archive.ts (Internet Archive), lyrics.ts (LRCLIB, Wikisource)
     lyrics/pack.ts   # встроенный сборник текстов
   preload/           # мост window.kolaars — безопасный API без Node в окне
   renderer/src/      # React 19: state (zustand), views, components, styles
-  shared/            # доменная модель, каналы IPC, LRC, значения по умолчанию
+  shared/            # доменная модель, каналы IPC, LRC, tracklist.ts, значения по умолчанию
 data/                # seed-catalog.json, lyrics-pack.json
-scripts/             # иконки, каталог, кэш упаковки, smoke-тест
+scripts/             # иконки, каталог, кэш упаковки, юнит-проверки, smoke-тесты
 ```
 
 Подробности — в [docs/architecture.md](docs/architecture.md),
@@ -280,6 +308,17 @@ scripts/             # иконки, каталог, кэш упаковки, sm
 возможностью отключить их в настройках.
 
 Каждое стороннее имя и ссылка перечислены на экране «О программе» внутри приложения.
+
+### Что приложение не делает
+
+Импорт списка треков — это сопоставление **названий**, а не загрузка чужого каталога.
+Kolaars Music не обращается к Яндекс.Музыке, Spotify, Genius и другим закрытым сервисам:
+их правила запрещают автоматический доступ, а тексты песен охраняются авторским правом.
+
+Практическое следствие: для современной защищённой музыки свободного источника звука не
+существует. Такая строка сохраняется как название и текст (из LRCLIB) **без аудио** —
+воспроизвести её можно, только добавив свой файл в библиотеку. Звук берётся лишь оттуда,
+где это разрешено: ваши файлы, офлайн-загрузки и открытый архив.
 
 ---
 
@@ -306,15 +345,22 @@ Russian.
 npm install
 npm run dev            # development with HMR
 npm run typecheck      # type-check main/preload and renderer
+npm run test:tracklist # unit checks for the track-list parser and exporters
 npm run smoke          # build + automated CDP smoke test
 npm run smoke:packaged # verify the packaged artefact in release/win-unpacked
 npm run dist:portable  # portable Windows .exe  → release/
 npm run dist:nsis      # NSIS installer          → release/
 ```
 
-* No accounts, no telemetry, no servers of our own.
-* All library data lives in a single `kolaars.json` document in Electron's `userData`
-  directory, written atomically and debounced.
+* No accounts, no telemetry, no servers of our own. **Profiles** are purely local: several
+  independent libraries on one machine, each a directory under `userData/profiles/<id>/`.
+* Paste or import a track list from another service (`.txt`/`.csv`/`.m3u`) and the app matches
+  each line against your library, then optionally the open archive and LRCLIB; playlists export
+  to M3U8/CSV/JSON.
+* It never talks to closed services (Yandex Music, Spotify, Genius). Copyrighted songs are kept
+  as a title plus lyrics with **no audio**, because there is no legitimate free source for them.
+* All library data lives in a single `kolaars.json` document per profile, written atomically and
+  debounced.
 * Local audio and artwork reach the renderer only through a privileged `kmedia://` scheme
   with an explicit path allowlist; the window runs with `contextIsolation` and `sandbox`.
 * Bundled data: `data/seed-catalog.json` (211 tracks across 10 shelves) and

@@ -1,6 +1,7 @@
 /** One playlist: its tracks, with reorder-free editing and an "add tracks" picker. */
 
 import { useMemo, useState, type JSX } from 'react'
+import { PLAYLIST_FILE_FORMATS } from '@shared/tracklist'
 import type { Track } from '@shared/types'
 import { useApp } from '../state/store'
 import { playAll, shuffleAll } from '../lib/play'
@@ -25,9 +26,11 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
   const [renaming, setRenaming] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [addFilter, setAddFilter] = useState('')
 
   const playlist = playlists.find((entry) => entry.id === id)
+  const exportPlaylist = useApp((state) => state.exportPlaylist)
 
   const tracks: Track[] = useMemo(() => {
     if (!playlist) return []
@@ -100,6 +103,15 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
             <button
               type="button"
               className="iconbtn iconbtn--sm"
+              title="Экспорт плейлиста"
+              disabled={tracks.length === 0}
+              onClick={() => setExporting(true)}
+            >
+              <Icon name="upload" size={16} />
+            </button>
+            <button
+              type="button"
+              className="iconbtn iconbtn--sm"
               title="Переименовать"
               onClick={() => setRenaming(true)}
             >
@@ -161,6 +173,40 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
           setRemoving(false)
         }}
       />
+
+      <Modal
+        open={exporting}
+        title="Экспорт плейлиста"
+        subtitle={`«${playlist.name}» — ${tracks.length} треков`}
+        onClose={() => setExporting(false)}
+        width={520}
+      >
+        <p className="dialog__text">
+          Список сохраняется с названиями и исполнителями — так его можно передать в другой сервис
+          или открыть в таблице. Ссылки на звук не выгружаются.
+        </p>
+        <ul className="source-list">
+          {PLAYLIST_FILE_FORMATS.map((format) => (
+            <li key={format.value} className="source-list__row">
+              <div className="source-list__text">
+                <span className="source-list__title">{format.label}</span>
+                <span className="source-list__meta">.{format.extension}</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => {
+                  setExporting(false)
+                  void exportPlaylist(playlist.id, format.value)
+                }}
+              >
+                <Icon name="download" size={15} />
+                Сохранить
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Modal>
 
       <Modal
         open={adding}

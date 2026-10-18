@@ -10,6 +10,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CH, EV, type MediaCommand } from '@shared/ipc'
 import type {
+  ImportListOutcome,
+  ImportListRequest,
+  PlaylistFileFormat
+} from '@shared/tracklist'
+import type {
   ArchiveCollection,
   Lyrics,
   LyricsCandidate,
@@ -176,7 +181,16 @@ const api = {
     removeTrack: (id: string, trackId: string): Promise<Playlist | null> =>
       invoke(CH.playlistRemoveTrack, id, trackId),
     reorder: (id: string, from: number, to: number): Promise<Playlist | null> =>
-      invoke(CH.playlistReorder, id, from, to)
+      invoke(CH.playlistReorder, id, from, to),
+    exportFile: (
+      id: string,
+      format: PlaylistFileFormat
+    ): Promise<{ path: string; count: number } | null> => invoke(CH.playlistExport, id, format)
+  },
+
+  tracklist: {
+    pickFile: (): Promise<{ path: string; text: string } | null> => invoke(CH.listPickFile),
+    run: (request: ImportListRequest): Promise<ImportListOutcome> => invoke(CH.listImport, request)
   },
 
   lyrics: {

@@ -53,6 +53,14 @@ import {
   searchBundledSongs
 } from './lyrics/pack'
 import { distributeTimings, emptyLyrics, parseLrc, serializeLrc } from '@shared/lrc'
+import {
+  PLAYLIST_FILE_FORMATS,
+  serializePlaylist,
+  type ImportListOutcome,
+  type ImportListRequest,
+  type PlaylistFileFormat
+} from '@shared/tracklist'
+import { importTrackList } from './importList'
 
 /* ------------------------------------------------------------------ */
 /* Plumbing                                                            */
@@ -374,6 +382,51 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     })
   })
 
+  handle(
+    CH.playlistExport,
+    async (
+      _event,
+      id: string,
+      format: PlaylistFileFormat
+    ): Promise<{ path: string; count: number } | null> => {
+      const db = await store.loadDb()
+      const playlist = db.playlists.find((p) => p.id === id)
+      if (!playlist) throw new Error('Плейлист не найден')
+
+      // A playlist may reference seeded catalog tracks that live outside the
+      // profile document, so resolve against both.
+      const seed = await loadSeedCatalog()
+      const byId = new Map<string, Track>()
+      for (const track of seed) byId.set(track.id, track)
+      for (const track of Object.values(db.tracks)) byId.set(track.id, track)
+
+      const tracks = playlist.trackIds
+        .map((trackId) => byId.get(trackId))
+        .filter((track): track is Track => Boolean(track))
+        .map((track) => ({
+          artist: track.artist,
+          title: track.title,
+          album: track.album ?? null,
+          duration: track.duration ?? null,
+          // Only a file the user actually has on disk is referenced; a stream
+          // link is never written out.
+          path: track.filePath ?? null
+        }))
+
+      const chosen = PLAYLIST_FILE_FORMATS.find((f) => f.value === format) ?? PLAYLIST_FILE_FORMATS[0]
+      const safe = playlist.name.replace(/[<>:"/\\|?*]/g, ' ').trim() || 'playlist'
+      const result = await saveDialog({
+        title: `Экспорт плейлиста (${chosen.label})`,
+        defaultPath: `${safe}.${chosen.extension}`,
+        filters: [{ name: chosen.label, extensions: [chosen.extension] }]
+      })
+      if (result.canceled || !result.filePath) return null
+
+      await fs.writeFile(result.filePath, serializePlaylist(chosen.value, playlist.name, tracks), 'utf8')
+      return { path: result.filePath, count: tracks.length }
+    }
+  )
+
   /* ----------------------------- lyrics ------------------------- */
 
   handle(
@@ -531,6 +584,38 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
   handle(CH.archiveItem, async (_event, identifier: string) => {
     const db = await store.loadDb()
     return fetchArchiveItem(identifier, db.settings.preferLossless)
+  })
+
+  /* ---------------------- track-list import --------------------- */
+
+  handle(CH.listPickFile, async (): Promise<{ path: string; text: string } | null> => {
+    const result = await openDialog({
+      title: 'Открыть список треков',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Списки треков', extensions: ['txt', 'csv', 'tsv', 'm3u', 'm3u8', 'list'] },
+        { name: 'Все файлы', extensions: ['*'] }
+      ]
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const filePath = result.filePaths[0]
+    const stat = await fs.stat(filePath)
+    if (stat.size > 4 * 1024 * 1024) throw new Error('Файл слишком большой (больше 4 МБ)')
+    return { path: filePath, text: await fs.readFile(filePath, 'utf8') }
+  })
+
+  handle(CH.listImport, async (_event, request: ImportListRequest): Promise<ImportListOutcome> => {
+    const entries = Array.isArray(request?.entries) ? request.entries : []
+    if (entries.length === 0) throw new Error('Список пуст — вставьте строки вида «Исполнитель — Название»')
+    if (entries.length > 5000) throw new Error('Слишком много строк (больше 5000)')
+    return importTrackList(
+      {
+        entries,
+        searchArchive: Boolean(request.searchArchive),
+        fetchLyrics: Boolean(request.fetchLyrics)
+      },
+      (done, total, current) => send(EV.importProgress, { done, total, current })
+    )
   })
 
   /* -------------------------- local files ----------------------- */

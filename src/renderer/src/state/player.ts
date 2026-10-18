@@ -194,7 +194,13 @@ async function loadCurrent(autoplay: boolean): Promise<void> {
   if (token !== loadToken) return
 
   if (!track.streamUrl) {
-    usePlayer.setState({ buffering: false, error: 'Не удалось получить ссылку на аудио' })
+    usePlayer.setState({
+      buffering: false,
+      error:
+        track.source === 'list'
+          ? 'У этого трека нет звука — сохранены только название и текст'
+          : 'Не удалось получить ссылку на аудио'
+    })
     return
   }
 

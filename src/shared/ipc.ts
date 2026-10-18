@@ -30,6 +30,11 @@ export const CH = {
   playlistAddTracks: 'playlist:add-tracks',
   playlistRemoveTrack: 'playlist:remove-track',
   playlistReorder: 'playlist:reorder',
+  playlistExport: 'playlist:export',
+
+  /* track-list import */
+  listPickFile: 'list:pick-file',
+  listImport: 'list:import',
 
   /* lyrics */
   lyricsGet: 'lyrics:get',
@@ -109,6 +114,7 @@ export type MediaCommand =
   /* UI-side actions driven by the application menu */
   | 'import-files'
   | 'import-folder'
+  | 'import-list'
   | 'new-playlist'
   | 'find-lyrics'
 

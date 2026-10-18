@@ -35,6 +35,9 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      - name: Unit checks (track-list parser)
+        run: npm run test:tracklist
+
       - name: Build
         run: npm run build
 

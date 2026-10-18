@@ -20,6 +20,7 @@ import { Sidebar } from './components/Sidebar'
 import { PlayerBar } from './components/PlayerBar'
 import { QueuePanel } from './components/QueuePanel'
 import { NowPlaying } from './components/NowPlaying'
+import { ImportListDialog } from './components/ImportListDialog'
 import { Toasts } from './components/Toasts'
 import { LyricsPanel } from './components/LyricsPanel'
 import { PromptModal } from './components/Dialogs'
@@ -265,6 +266,9 @@ export default function App(): JSX.Element {
         case 'import-folder':
           void useApp.getState().importFolder()
           break
+        case 'import-list':
+          useApp.getState().setImportListOpen(true)
+          break
         case 'new-playlist':
           setNewPlaylistOpen(true)
           break
@@ -392,6 +396,8 @@ export default function App(): JSX.Element {
       />
 
       {nowPlayingOpen ? <NowPlaying /> : null}
+
+      <ImportListDialog />
 
       <Toasts />
 

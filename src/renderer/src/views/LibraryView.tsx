@@ -69,6 +69,14 @@ export function LibraryView(): JSX.Element {
         subtitle={`${trackCountLabel(userTracks.length)} — импортированные файлы и офлайн-загрузки`}
         actions={
           <>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => useApp.getState().setImportListOpen(true)}
+            >
+              <Icon name="link" size={15} />
+              Импорт списка
+            </button>
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => void importFolder()}>
               <Icon name="folder" size={15} />
               Папка

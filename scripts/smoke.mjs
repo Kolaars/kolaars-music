@@ -402,7 +402,9 @@ const INTERACTIONS = [
       })()`,
       `document.querySelector('.modal .searchbar--inline .btn--primary')?.click()`
     ],
-    delay: 1_000,
+    // The modal returns its bundled matches together with the Wikisource
+    // response, so this waits on the network: give a slow reply room to land.
+    delay: 4_000,
     assert: `[...document.querySelectorAll('.source-block')].some((block) =>
       (block.textContent ?? '').includes('Amazing Grace'))`,
     assertName: 'the bundled pack returns a match'
