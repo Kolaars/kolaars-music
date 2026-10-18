@@ -26,10 +26,12 @@ import { deriveGenres, loadSeedCatalog } from './catalog'
 import { allowMediaPath, encodeMediaUrl } from './media'
 import { importPaths } from './localFiles'
 import {
+  forgetDownloads,
   listDownloads,
   removeDownload,
   cancelDownload,
   resolveDownloadDir,
+  restoreDownloads,
   setProgressSink,
   startDownload,
   type DownloadRecord
@@ -102,6 +104,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
 
   handle(CH.appInfo, async () => {
     const seed = await loadSeedCatalog()
+    const profile = store.activeProfile()
     return {
       name: app.getName(),
       version: app.getVersion(),
@@ -112,6 +115,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
       userData: store.userDataDir(),
       downloadsDir: store.downloadsDir(),
       seedTracks: seed.length,
+      profile: profile ? { id: profile.id, name: profile.name } : null,
       lyricsPack: PACK_INFO
     }
   })
@@ -172,6 +176,39 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
       db.session = { ...db.session, ...patch }
       return db.session
     })
+  })
+
+  /* ---------------------------- profiles ------------------------ */
+
+  handle(CH.profilesList, async () => {
+    const reg = await store.listProfiles()
+    return { activeId: reg.activeId, profiles: reg.profiles }
+  })
+
+  handle(CH.profilesCreate, async (_event, name: string) => {
+    const reg = await store.createProfile(name)
+    return { activeId: reg.activeId, profiles: reg.profiles }
+  })
+
+  handle(CH.profilesRename, async (_event, id: string, name: string) => {
+    const reg = await store.renameProfile(id, name)
+    return { activeId: reg.activeId, profiles: reg.profiles }
+  })
+
+  handle(CH.profilesDelete, async (_event, id: string) => {
+    const reg = await store.deleteProfile(id)
+    return { activeId: reg.activeId, profiles: reg.profiles }
+  })
+
+  handle(CH.profilesSwitch, async (_event, id: string) => {
+    const reg = await store.setActiveProfile(id)
+    // Downloads, records and offline paths all belong to the profile that
+    // started them, so the previous profile's are dropped and the new one's
+    // files are re-attached to the media protocol.
+    forgetDownloads()
+    const db = await store.loadDb()
+    await restoreDownloads(resolveDownloadDir(db.settings.downloadDir))
+    return { activeId: reg.activeId, profiles: reg.profiles }
   })
 
   /* ---------------------------- library ------------------------- */

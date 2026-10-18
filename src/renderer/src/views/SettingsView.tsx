@@ -1,12 +1,13 @@
 /** Settings — theme, playback, sources and local data. */
 
-import type { JSX } from 'react'
-import type { ThemeMode } from '@shared/types'
+import { useState, type JSX } from 'react'
+import type { Profile, ThemeMode } from '@shared/types'
 import { api } from '../lib/api'
 import { useApp } from '../state/store'
 import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { Field, Range, SectionCard, Select, Switch } from '../components/Controls'
+import { ConfirmModal, PromptModal } from '../components/Dialogs'
 
 const ACCENTS = ['#7c5cff', '#4f8cff', '#22c1a4', '#f4b740', '#ff6b6b', '#ff5ea8', '#8ce563', '#00b8d9']
 
@@ -28,6 +29,8 @@ export function SettingsView(): JSX.Element {
         title="Настройки"
         subtitle="Всё хранится локально, в одном файле kolaars.json в папке данных приложения"
       />
+
+      <ProfilesCard />
 
       <SectionCard icon="sparkles" title="Внешний вид" description="Тема оформления и акцентный цвет">
         <Field label="Тема" hint="Тёмная, светлая или как в системе">
@@ -212,5 +215,175 @@ export function SettingsView(): JSX.Element {
         </Field>
       </SectionCard>
     </Page>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Profiles                                                            */
+/* ------------------------------------------------------------------ */
+
+function initials(name: string): string {
+  return name.trim().slice(0, 1).toUpperCase() || '?'
+}
+
+function createdLabel(at: number): string {
+  try {
+    return new Date(at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Local profiles: independent libraries on one machine. There is no account and
+ * no network involved — a profile is a directory (`userData/profiles/<id>/`)
+ * holding the whole library: tracks, playlists, lyrics, covers and downloads.
+ */
+function ProfilesCard(): JSX.Element {
+  const profiles = useApp((state) => state.profiles)
+  const activeProfileId = useApp((state) => state.activeProfileId)
+  const appInfo = useApp((state) => state.appInfo)
+  const switchProfile = useApp((state) => state.switchProfile)
+  const createProfile = useApp((state) => state.createProfile)
+  const renameProfile = useApp((state) => state.renameProfile)
+  const deleteProfile = useApp((state) => state.deleteProfile)
+
+  const [creating, setCreating] = useState(false)
+  const [renaming, setRenaming] = useState<Profile | null>(null)
+  const [removing, setRemoving] = useState<Profile | null>(null)
+
+  const active = profiles.find((profile) => profile.id === activeProfileId)
+
+  return (
+    <>
+      <SectionCard
+        icon="library"
+        title="Профили"
+        description="Несколько независимых библиотек на одном компьютере — без аккаунтов и без сети"
+      >
+        <ul className="profilelist">
+          {profiles.map((profile) => {
+            const isActive = profile.id === activeProfileId
+            return (
+              <li
+                key={profile.id}
+                className={`profilelist__row${isActive ? ' profilelist__row--active' : ''}`}
+              >
+                <span className="profilelist__avatar" aria-hidden="true">
+                  {initials(profile.name)}
+                </span>
+                <span className="profilelist__main">
+                  <span className="profilelist__name">{profile.name}</span>
+                  <span className="profilelist__meta">
+                    {isActive ? 'Активный профиль' : `Создан ${createdLabel(profile.createdAt)}`}
+                  </span>
+                </span>
+
+                {isActive ? (
+                  <span className="badge badge--accent">активен</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => void switchProfile(profile.id)}
+                  >
+                    Переключить
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="iconbtn iconbtn--sm"
+                  title="Переименовать"
+                  onClick={() => setRenaming(profile)}
+                >
+                  <Icon name="pencil" size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="iconbtn iconbtn--sm"
+                  title={profiles.length <= 1 ? 'Нельзя удалить единственный профиль' : 'Удалить профиль'}
+                  disabled={profiles.length <= 1}
+                  onClick={() => setRemoving(profile)}
+                >
+                  <Icon name="trash" size={15} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+
+        <div className="field__row">
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setCreating(true)}>
+            <Icon name="plus" size={15} />
+            Новый профиль
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={!appInfo?.userData}
+            onClick={() => appInfo?.userData && void api.local.reveal(appInfo.userData)}
+          >
+            <Icon name="folder" size={15} />
+            Открыть папку профиля
+          </button>
+        </div>
+
+        <p className="page__note">
+          Каждый профиль хранит свою библиотеку, плейлисты, избранное, тексты, обложки и загрузки — целиком
+          в отдельной папке. Вход и пароль не нужны: профили живут только на этом компьютере.
+        </p>
+      </SectionCard>
+
+      <PromptModal
+        open={creating}
+        title="Новый профиль"
+        label="Название профиля"
+        placeholder="Например, Рабочая музыка"
+        confirmLabel="Создать"
+        onCancel={() => setCreating(false)}
+        onConfirm={(value) => {
+          setCreating(false)
+          void createProfile(value)
+        }}
+      />
+
+      <PromptModal
+        open={renaming !== null}
+        title="Переименовать профиль"
+        label="Название профиля"
+        initialValue={renaming?.name ?? ''}
+        confirmLabel="Сохранить"
+        onCancel={() => setRenaming(null)}
+        onConfirm={(value) => {
+          const target = renaming
+          setRenaming(null)
+          if (target) void renameProfile(target.id, value)
+        }}
+      />
+
+      <ConfirmModal
+        open={removing !== null}
+        title="Удалить профиль?"
+        confirmLabel="Удалить навсегда"
+        text={
+          <>
+            Профиль «{removing?.name}» и вся его библиотека будут удалены с диска. Это действие нельзя
+            отменить.
+            {removing?.id === activeProfileId ? ' Вы будете переключены на другой профиль.' : ''}
+          </>
+        }
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => {
+          const target = removing
+          setRemoving(null)
+          if (target) void deleteProfile(target.id)
+        }}
+      />
+
+      {active && profiles.length > 1 ? (
+        <p className="page__note">Сейчас используется профиль «{active.name}».</p>
+      ) : null}
+    </>
   )
 }

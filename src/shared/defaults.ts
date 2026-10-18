@@ -2,9 +2,14 @@
  * Default values and small helpers shared by main and renderer.
  */
 
-import type { PersistedDb, Settings, SessionState } from './types'
+import type { PersistedDb, ProfilesRegistry, Settings, SessionState } from './types'
 
 export const DB_VERSION = 1
+
+export const PROFILES_VERSION = 1
+
+/** Name given to the profile that adopts a pre-profiles installation. */
+export const DEFAULT_PROFILE_NAME = 'Основной'
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
@@ -46,6 +51,15 @@ export function createDefaultDb(): PersistedDb {
     history: [],
     session: { ...DEFAULT_SESSION },
     importedPaths: []
+  }
+}
+
+/** An empty registry holding a single, freshly named profile. */
+export function createDefaultRegistry(id: string, name = DEFAULT_PROFILE_NAME): ProfilesRegistry {
+  return {
+    version: PROFILES_VERSION,
+    activeId: id,
+    profiles: [{ id, name, createdAt: Date.now() }]
   }
 }
 

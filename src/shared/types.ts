@@ -17,6 +17,12 @@ export type TrackSource =
   | 'online'
   /** Imported from the user's disk. */
   | 'local'
+  /**
+   * Added from a pasted or imported track list (see `shared/tracklist.ts`).
+   * Entry may carry metadata only — such a track shows its lyrics but has no
+   * audio of its own.
+   */
+  | 'list'
 
 /** A playable item. */
 export interface Track {
@@ -198,6 +204,29 @@ export interface ArchiveCollection {
   description: string
   /** Sort used by the archive.org advanced search. */
   sort?: string
+}
+
+/* ------------------------------------------------------------------ */
+/* Profiles                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A local profile: one self-contained library (tracks, playlists, favourites,
+ * lyrics, covers and downloads) under its own directory. There are no accounts
+ * and no server — profiles simply let several people, or several collections,
+ * share one installation without seeing each other's data.
+ */
+export interface Profile {
+  id: string
+  name: string
+  createdAt: number
+}
+
+/** The small registry file (`profiles.json`) that lives beside the profiles. */
+export interface ProfilesRegistry {
+  version: number
+  activeId: string
+  profiles: Profile[]
 }
 
 /* ------------------------------------------------------------------ */

@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { makeId } from '@shared/defaults'
 import type { QueueItem, RepeatMode, Track } from '@shared/types'
 import { errorMessage } from '../lib/api'
-import { useApp } from './store'
+import { registerPlaybackReset, useApp } from './store'
 
 const TICK_MS = 66 // ~15 fps: plenty for karaoke line highlighting and a seek bar
 
@@ -510,6 +510,12 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 /* ------------------------------------------------------------------ */
 /* Wiring                                                              */
 /* ------------------------------------------------------------------ */
+
+// Switching profiles must silence the current track; the store cannot import
+// this module (cycle), so it calls back into it instead.
+registerPlaybackReset(() => {
+  usePlayer.getState().clearQueue()
+})
 
 /** Subscribes to track changes so the app can react (history, lyrics, ...). */
 export function onTrackChange(listener: (trackId: string | null) => void): () => void {

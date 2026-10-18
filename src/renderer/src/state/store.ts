@@ -8,7 +8,7 @@
 
 import { create } from 'zustand'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
-import type { Playlist, Settings, Track } from '@shared/types'
+import type { Playlist, Profile, Settings, Track } from '@shared/types'
 import { api, errorMessage } from '../lib/api'
 import type { AppInfo, DownloadRecord, ShelfDescriptor } from '../../../preload/index'
 
@@ -40,6 +40,10 @@ export interface ImportProgress {
 interface AppState {
   ready: boolean
   appInfo: AppInfo | null
+
+  /** Local profiles: independent libraries on the same machine. */
+  profiles: Profile[]
+  activeProfileId: string
 
   settings: Settings
   seedTracks: Track[]
@@ -110,6 +114,14 @@ interface AppState {
   removeDownload: (trackId: string) => Promise<void>
 
   updateSettings: (patch: Partial<Settings>) => Promise<void>
+
+  createProfile: (name: string) => Promise<void>
+  renameProfile: (id: string, name: string) => Promise<void>
+  deleteProfile: (id: string) => Promise<void>
+  /** Reloads the whole library from another profile directory. */
+  switchProfile: (id: string) => Promise<void>
+  /** Resets per-profile state and re-bootstraps; call after switching profiles. */
+  reloadForProfile: () => Promise<void>
 }
 
 /** Merges the bundled catalog with the user's tracks; user entries win. */
@@ -131,10 +143,38 @@ function buildCatalog(seed: Track[], user: Track[]): { catalog: Track[]; catalog
 }
 
 let toastCounter = 0
+/** Event subscriptions are process-global, so they are wired exactly once. */
+let eventsWired = false
+
+function wireEvents(
+  set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
+  get: () => AppState
+): void {
+  if (eventsWired) return
+  eventsWired = true
+
+  api.events.onDownloadProgress((record) => {
+    set((state) => {
+      const others = state.downloads.filter((d) => d.trackId !== record.trackId)
+      return { downloads: [...others, record] }
+    })
+    if (record.status === 'done') {
+      void get().refreshLibrary()
+      get().toast(`Загружено: ${record.title}`, 'success')
+    } else if (record.status === 'error') {
+      get().toast(`Ошибка загрузки: ${record.error ?? record.title}`, 'error')
+    }
+  })
+
+  api.events.onImportProgress((progress) => set({ importProgress: progress }))
+}
 
 export const useApp = create<AppState>((set, get) => ({
   ready: false,
   appInfo: null,
+
+  profiles: [],
+  activeProfileId: '',
 
   settings: DEFAULT_SETTINGS,
   seedTracks: [],
@@ -164,12 +204,13 @@ export const useApp = create<AppState>((set, get) => ({
 
   bootstrap: async () => {
     try {
-      const [info, snapshot, seed, shelves, downloads] = await Promise.all([
+      const [info, snapshot, seed, shelves, downloads, profiles] = await Promise.all([
         api.app.info(),
         api.store.load(),
         api.catalog.seed(),
         api.catalog.shelves(),
-        api.downloads.list()
+        api.downloads.list(),
+        api.profiles.list()
       ])
 
       const { catalog, catalogIndex } = buildCatalog(seed, snapshot.tracks)
@@ -187,23 +228,12 @@ export const useApp = create<AppState>((set, get) => ({
         lyricsIds: new Set(snapshot.lyricsIds),
         history: snapshot.history,
         shelves,
-        downloads
+        downloads,
+        profiles: profiles.profiles,
+        activeProfileId: profiles.activeId
       })
 
-      api.events.onDownloadProgress((record) => {
-        set((state) => {
-          const others = state.downloads.filter((d) => d.trackId !== record.trackId)
-          return { downloads: [...others, record] }
-        })
-        if (record.status === 'done') {
-          void get().refreshLibrary()
-          get().toast(`Загружено: ${record.title}`, 'success')
-        } else if (record.status === 'error') {
-          get().toast(`Ошибка загрузки: ${record.error ?? record.title}`, 'error')
-        }
-      })
-
-      api.events.onImportProgress((progress) => set({ importProgress: progress }))
+      wireEvents(set, get)
 
       // Playlists, favourites and the restored session all persist ids only.
       // Anything the catalog does not know yet (an archive.org item the user
@@ -491,6 +521,85 @@ export const useApp = create<AppState>((set, get) => ({
       set({ settings: previous })
       get().toast(`Не удалось сохранить настройки: ${errorMessage(error)}`, 'error')
     }
+  },
+
+  /* ---------------------------- profiles -------------------------- */
+
+  createProfile: async (name) => {
+    try {
+      const state = await api.profiles.create(name)
+      set({ profiles: state.profiles, activeProfileId: state.activeId })
+      get().toast(`Профиль «${name.trim() || 'Новый профиль'}» создан`)
+    } catch (error) {
+      get().toast(`Не удалось создать профиль: ${errorMessage(error)}`, 'error')
+    }
+  },
+
+  renameProfile: async (id, name) => {
+    try {
+      const state = await api.profiles.rename(id, name)
+      set({ profiles: state.profiles, activeProfileId: state.activeId })
+    } catch (error) {
+      get().toast(`Не удалось переименовать профиль: ${errorMessage(error)}`, 'error')
+    }
+  },
+
+  deleteProfile: async (id) => {
+    const activeBefore = get().activeProfileId
+    const victim = get().profiles.find((profile) => profile.id === id)
+    try {
+      const state = await api.profiles.remove(id)
+      set({ profiles: state.profiles, activeProfileId: state.activeId })
+      get().toast(`Профиль «${victim?.name ?? id}» удалён`)
+      // Deleting the active profile makes the main process pick a fallback, so
+      // the library has to be reloaded from that profile's directory.
+      if (id === activeBefore) await get().reloadForProfile()
+    } catch (error) {
+      get().toast(`Не удалось удалить профиль: ${errorMessage(error)}`, 'error')
+    }
+  },
+
+  switchProfile: async (id) => {
+    if (!id || id === get().activeProfileId) return
+    try {
+      const state = await api.profiles.switch(id)
+      set({ profiles: state.profiles, activeProfileId: state.activeId })
+      await get().reloadForProfile()
+      const name = state.profiles.find((profile) => profile.id === state.activeId)?.name ?? ''
+      get().toast(`Профиль: ${name}`, 'success')
+    } catch (error) {
+      get().toast(`Не удалось переключить профиль: ${errorMessage(error)}`, 'error')
+    }
+  },
+
+  /**
+   * Drops every piece of per-profile state and loads the newly active profile.
+   * Playback is stopped by the caller (`App`), because the player store cannot
+   * be imported here without creating a cycle.
+   */
+  reloadForProfile: async () => {
+    stopPlaybackForProfileSwitch()
+    set({
+      ready: false,
+      seedTracks: [],
+      userTracks: [],
+      catalog: [],
+      catalogIndex: new Map(),
+      playlists: [],
+      favorites: new Set(),
+      lyricsIds: new Set(),
+      history: [],
+      downloads: [],
+      importProgress: null,
+      route: { name: 'discover' },
+      routeStack: [],
+      searchQuery: '',
+      nowPlayingOpen: false,
+      queueOpen: false,
+      lyricsTab: null,
+      toasts: []
+    })
+    await get().bootstrap()
   }
 }))
 
@@ -522,6 +631,29 @@ async function runImport(
   } catch (error) {
     set({ importProgress: null })
     get().toast(`Ошибка импорта: ${errorMessage(error)}`, 'error')
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Playback reset hook                                                 */
+/* ------------------------------------------------------------------ */
+
+let stopPlayback: () => void = () => {}
+
+/**
+ * The player registers a stopper here, so switching profiles can silence the
+ * current track without the store importing `state/player.ts` (which imports
+ * the store, and would be a cycle).
+ */
+export function registerPlaybackReset(fn: () => void): void {
+  stopPlayback = fn
+}
+
+function stopPlaybackForProfileSwitch(): void {
+  try {
+    stopPlayback()
+  } catch {
+    /* the player may not be mounted yet */
   }
 }
 

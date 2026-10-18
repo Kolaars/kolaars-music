@@ -53,6 +53,18 @@ export function getDownload(trackId: string): DownloadRecord | undefined {
   return records.get(trackId)
 }
 
+/**
+ * Forgets every download record without touching the files on disk. Used when
+ * switching profiles: the records and their paths belong to the profile that
+ * started them, and the next profile must not see them.
+ */
+export function forgetDownloads(): void {
+  for (const controller of controllers.values()) controller.abort()
+  controllers.clear()
+  pending.clear()
+  records.clear()
+}
+
 function fileExtensionFor(track: Track): string {
   const fromUrl = track.streamUrl.split('?')[0].match(/\.([a-z0-9]{2,4})$/i)
   if (fromUrl) return `.${fromUrl[1].toLowerCase()}`

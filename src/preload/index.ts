@@ -14,6 +14,7 @@ import type {
   Lyrics,
   LyricsCandidate,
   Playlist,
+  Profile,
   SearchQuery,
   SearchResultPage,
   Settings,
@@ -73,7 +74,13 @@ export interface AppInfo {
   userData: string
   downloadsDir: string
   seedTracks: number
+  profile: { id: string; name: string } | null
   lyricsPack: { name: string; version: string; license: string; note: string; count: number }
+}
+
+export interface ProfilesState {
+  activeId: string
+  profiles: Profile[]
 }
 
 export interface BundledSong {
@@ -127,6 +134,14 @@ const api = {
     load: (): Promise<LibrarySnapshot> => invoke(CH.dbLoad),
     saveSettings: (patch: Partial<Settings>): Promise<Settings> => invoke(CH.dbSettings, patch),
     saveSession: (patch: Partial<SessionState>): Promise<SessionState> => invoke(CH.dbSession, patch)
+  },
+
+  profiles: {
+    list: (): Promise<ProfilesState> => invoke(CH.profilesList),
+    create: (name: string): Promise<ProfilesState> => invoke(CH.profilesCreate, name),
+    rename: (id: string, name: string): Promise<ProfilesState> => invoke(CH.profilesRename, id, name),
+    remove: (id: string): Promise<ProfilesState> => invoke(CH.profilesDelete, id),
+    switch: (id: string): Promise<ProfilesState> => invoke(CH.profilesSwitch, id)
   },
 
   catalog: {

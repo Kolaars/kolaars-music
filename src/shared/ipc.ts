@@ -67,6 +67,13 @@ export const CH = {
   downloadList: 'download:list',
   downloadReveal: 'download:reveal',
 
+  /* profiles */
+  profilesList: 'profiles:list',
+  profilesCreate: 'profiles:create',
+  profilesRename: 'profiles:rename',
+  profilesDelete: 'profiles:delete',
+  profilesSwitch: 'profiles:switch',
+
   /* seed catalog */
   catalogSeed: 'catalog:seed',
   catalogGenres: 'catalog:genres'
