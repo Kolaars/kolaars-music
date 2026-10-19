@@ -30,6 +30,27 @@ export function allowMediaPaths(filePaths: Iterable<string>): void {
   for (const p of filePaths) allowMediaPath(p)
 }
 
+/**
+ * Re-allows everything a stored track points at — the audio file and the cover
+ * next to it.
+ *
+ * The allowlist lives in memory only, so it is empty in every new process. A
+ * library that was filled in an earlier session would otherwise come back
+ * forbidden: covers would not render and nothing would play, with no hint as to
+ * why. Called whenever a profile document is read.
+ */
+export function allowMediaPathsOfTracks(
+  tracks: Iterable<{ filePath?: string | null; artwork?: string | null }>
+): void {
+  for (const track of tracks) {
+    if (track.filePath) allowMediaPath(track.filePath)
+    const artwork = track.artwork
+    if (!artwork || !artwork.startsWith(`${MEDIA_SCHEME}://`)) continue
+    const decoded = decodeMediaUrl(artwork)
+    if (decoded) allowMediaPath(decoded)
+  }
+}
+
 export function disallowMediaPath(filePath: string): void {
   allowed.delete(normalise(filePath))
 }

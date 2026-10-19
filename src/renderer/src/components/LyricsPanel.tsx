@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { Track } from '@shared/types'
 import { activeLyrics, lineIndexAt, useLyrics } from '../state/lyrics'
 import { useApp } from '../state/store'
@@ -41,6 +41,7 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
   const scrollRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<(HTMLParagraphElement | null)[]>([])
   const userScrolledAt = useRef(0)
+  const pointerInside = useRef(false)
 
   const synced = lyrics?.synced ?? null
   const activeIndex = useMemo(
@@ -48,19 +49,51 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
     [synced, position, track]
   )
 
-  // Follow the music, but get out of the way as soon as the user scrolls.
+  /**
+   * Puts a line in the middle of the scroller.
+   *
+   * Measured with rectangles, not `offsetTop`: the scroll container is not the
+   * offset parent (the panel head and the lyrics dock sit between the two), so
+   * `offsetTop` is short by everything above the list — picking a line used to
+   * send the list somewhere else, up to the very beginning of the text.
+   */
+  const centerLine = useCallback((index: number): void => {
+    const container = scrollRef.current
+    const line = lineRefs.current[index]
+    if (!container || !line) return
+    const containerRect = container.getBoundingClientRect()
+    const lineRect = line.getBoundingClientRect()
+    const target =
+      container.scrollTop + (lineRect.top - containerRect.top) - container.clientHeight / 2 + lineRect.height / 2
+    container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+  }, [])
+
+  // Follow the music, but only step in once the highlighted line is about to
+  // leave the window. Re-centring on every line makes the text crawl under the
+  // cursor, and a click then lands on a different line than the one aimed at.
   useEffect(() => {
     if (activeIndex < 0) return
+    if (pointerInside.current) return
     if (Date.now() - userScrolledAt.current < 4000) return
     const container = scrollRef.current
     const line = lineRefs.current[activeIndex]
     if (!container || !line) return
-    const target = line.offsetTop - container.clientHeight / 2 + line.clientHeight / 2
-    container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
-  }, [activeIndex])
+    const containerRect = container.getBoundingClientRect()
+    const lineRect = line.getBoundingClientRect()
+    const margin = Math.max(28, container.clientHeight * 0.2)
+    if (lineRect.top >= containerRect.top + margin && lineRect.bottom <= containerRect.bottom - margin) return
+    centerLine(activeIndex)
+  }, [activeIndex, centerLine])
 
   const markUserScroll = (): void => {
     userScrolledAt.current = Date.now()
+  }
+
+  /** A line was picked: seek there and keep it exactly where it was clicked. */
+  const goToLine = (index: number, time: number): void => {
+    userScrolledAt.current = Date.now()
+    usePlayer.getState().seek(time)
+    centerLine(index)
   }
 
   const openWorkshop = (tab: WorkshopTab): void => setWorkshop(tab)
@@ -154,7 +187,19 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
           compact={variant === 'panel'}
         />
       ) : synced && synced.length > 0 ? (
-        <div className="lyrics__scroll" ref={scrollRef} onWheel={markUserScroll} onTouchMove={markUserScroll}>
+        <div
+          className="lyrics__scroll"
+          ref={scrollRef}
+          onWheel={markUserScroll}
+          onTouchMove={markUserScroll}
+          onPointerEnter={() => {
+            pointerInside.current = true
+          }}
+          onPointerLeave={() => {
+            pointerInside.current = false
+            markUserScroll()
+          }}
+        >
           <div className="lyrics__lines">
             {synced.map((line, index) => (
               <p
@@ -165,7 +210,7 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
                 className={`lyrics__line${index === activeIndex ? ' lyrics__line--active' : ''}${
                   index < activeIndex ? ' lyrics__line--past' : ''
                 }`}
-                onClick={() => usePlayer.getState().seek(line.time)}
+                onClick={() => goToLine(index, line.time)}
                 title="Перейти к этой строке"
               >
                 {line.text}

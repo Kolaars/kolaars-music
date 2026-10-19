@@ -184,15 +184,15 @@ npm run smoke       # сборка + автоматический тест ин�
 | `node scripts/build-seed-catalog.mjs [--per-shelf 24]` | Пересобирает `data/seed-catalog.json` из живых запросов Internet Archive. |
 | `node scripts/fetch-builder-tools.mjs [--all] [--list]` | Готовит офлайн-кэш `electron-builder`. |
 | `node scripts/smoke.mjs [--screenshot=DIR] [--keep-open]` | Smoke-тест по CDP; сохраняет экраны интерфейса. |
-| `node scripts/smoke-packaged.mjs [--exe=PATH] [--screenshot=DIR]` | Smoke-тест собранного приложения (asar, `kmedia://`, локальный импорт). |
+| `node scripts/smoke-packaged.mjs [--exe=PATH] [--screenshot=DIR]` | Smoke-тест собранного приложения (asar, `kmedia://`, локальный импорт, перезапуск на том же профиле). |
 
 ---
 
 ## Сборка дистрибутивов
 
 ```powershell
-npm run dist:portable   # release/kolaars-music-1.2.0-portable.exe
-npm run dist:nsis       # release/kolaars-music-1.2.0-setup.exe
+npm run dist:portable   # release/kolaars-music-1.2.1-portable.exe
+npm run dist:nsis       # release/kolaars-music-1.2.1-setup.exe
 ```
 
 Конфигурация упаковки — `electron-builder.yml`: установщик NSIS и портативная версия для

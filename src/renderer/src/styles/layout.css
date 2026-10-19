@@ -609,6 +609,13 @@
   line-height: 1;
 }
 
+/* The panel's own close button shares this corner with the lyrics menu. Without
+ * the gap the close button lies exactly over the menu button and swallows every
+ * press aimed at it — the menu could not be opened by mouse at all. */
+.lyricsdock .lyrics__head {
+  padding-right: 38px;
+}
+
 /* ==========================================================================
    Now Playing overlay
    ========================================================================== */
@@ -659,7 +666,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 34px;
-  padding: 0 40px 36px;
+  padding: 0 40px 22px;
 }
 
 .nowplaying__art {
@@ -675,12 +682,30 @@
   overflow-y: auto;
 }
 
-.nowplaying__cover {
-  width: min(320px, 38vh);
-  height: auto;
+.nowplaying__artwrap {
+  position: relative;
+  width: min(320px, 34vh);
   aspect-ratio: 1;
+  flex-shrink: 0;
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-2);
+}
+
+.nowplaying__cover {
+  width: 100%;
+  height: 100%;
+}
+
+/* Film grain lying on top of the artwork, as a shader-like overlay. */
+.nowplaying__grain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.42;
 }
 
 .nowplaying__info {
@@ -707,14 +732,24 @@
   margin: 14px 0;
 }
 
-.nowplaying__progress {
+.nowplaying__foot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 40px 18px;
+}
+
+/* The bar is the whole width of the screen; it must not grow vertically. */
+.nowplaying__foot .seekbar {
+  flex: none;
   width: 100%;
 }
 
 .nowplaying__times {
   display: flex;
   justify-content: space-between;
-  margin-top: 4px;
+  margin-top: 0;
   font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;

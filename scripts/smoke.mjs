@@ -38,6 +38,36 @@ const fixtureDir = path.join(os.tmpdir(), `kolaars-smoke-music-${process.pid}`)
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const paint = (color, text) => `\u001b[${color}m${text}\u001b[0m`
 
+/** A tiny playable WAV, so a check can seek and follow a lyric line. */
+function makeWav(seconds, rate = 44100) {
+  const frames = seconds * rate
+  const samples = Buffer.alloc(frames * 2)
+  for (let i = 0; i < frames; i++) {
+    samples.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 330 * i) / rate) * 9000), i * 2)
+  }
+  const header = Buffer.alloc(44)
+  header.write('RIFF', 0)
+  header.writeUInt32LE(36 + samples.length, 4)
+  header.write('WAVE', 8)
+  header.write('fmt ', 12)
+  header.writeUInt32LE(16, 16)
+  header.writeUInt16LE(1, 20)
+  header.writeUInt16LE(1, 22)
+  header.writeUInt32LE(rate, 24)
+  header.writeUInt32LE(rate * 2, 28)
+  header.writeUInt16LE(2, 32)
+  header.writeUInt16LE(16, 34)
+  header.write('data', 36)
+  header.writeUInt32LE(samples.length, 40)
+  return Buffer.concat([header, samples])
+}
+
+/** Thirty synced lines, dense enough to overflow any lyrics panel. */
+const SMOKE_LINES = Array.from({ length: 30 }, (_, index) => ({
+  text: `Строка ${index + 1} — проверка перехода`,
+  time: Number((0.35 * index + 0.2).toFixed(2))
+}))
+
 /* ------------------------------------------------------------------ */
 /* Chrome DevTools Protocol client                                     */
 /* ------------------------------------------------------------------ */
@@ -128,6 +158,37 @@ class Cdp {
       captureBeyondViewport: false
     })
     return Buffer.from(result.data, 'base64')
+  }
+
+  /** Centre of an element in viewport coordinates. */
+  async box(selector, nth = 0) {
+    return this.evaluate(`(() => {
+      const el = document.querySelectorAll(${JSON.stringify(selector)})[${nth}]
+      if (!el) return null
+      const rect = el.getBoundingClientRect()
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, w: rect.width, h: rect.height }
+    })()`)
+  }
+
+  /** Move the pointer somewhere, without pressing. */
+  async hover(x, y) {
+    await this.#send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+  }
+
+  /**
+   * A trusted press.
+   *
+   * Menus and click-to-seek only ever broke for a real pointer: a programmatic
+   * `element.click()` skips the pointer events that used to dismiss the menu
+   * before the click could land. Anything user-facing has to be pressed like
+   * this or the regression goes unnoticed.
+   */
+  async press(x, y) {
+    const button = { x, y, button: 'left', clickCount: 1 }
+    await this.#send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+    await this.#send('Input.dispatchMouseEvent', { type: 'mousePressed', ...button })
+    await sleep(30)
+    await this.#send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...button })
   }
 
   async waitFor(label, expression, timeout = 25_000, interval = 250) {
@@ -391,48 +452,6 @@ const INTERACTIONS = [
     assert: `[...document.querySelectorAll('.playlist-item__name')].some((node) =>
       (node.textContent ?? '').includes('Смоук-плейлист'))`,
     assertName: 'the playlist is listed in the sidebar'
-  },
-  {
-    name: 'the lyrics workshop lists the bundled public-domain pack',
-    steps: [
-      `document.querySelector('.lyricsdock__close')?.click()`,
-      `document.querySelector('.playerbar__right .iconbtn[title^="Текст"]')?.click()`,
-      `document.querySelector('.lyricsdock button[title^="Действия с текстом"]')?.click()`,
-      `[...document.querySelectorAll('.menu__item')]
-        .find((item) => (item.textContent ?? '').includes('Найти в открытых базах'))?.click()`,
-      `(() => {
-        const input = document.querySelector('.modal .searchbar--inline .input')
-        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
-        setter.call(input, 'Amazing Grace')
-        input.dispatchEvent(new Event('input', { bubbles: true }))
-      })()`,
-      `document.querySelector('.modal .searchbar--inline .btn--primary')?.click()`
-    ],
-    // The modal returns its bundled matches together with the Wikisource
-    // response, so this waits on the network: give a slow reply room to land.
-    delay: 4_000,
-    assert: `[...document.querySelectorAll('.source-block')].some((block) =>
-      (block.textContent ?? '').includes('Amazing Grace'))`,
-    assertName: 'the bundled pack returns a match'
-  },
-  {
-    name: 'a bundled lyric can be applied and shows up in the panel',
-    steps: [
-      `(() => {
-        const row = [...document.querySelectorAll('.source-block .source-list__row')]
-          .find((item) => (item.textContent ?? '').includes('Amazing Grace'))
-        row?.querySelector('button')?.click()
-      })()`,
-      `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`
-    ],
-    delay: 900,
-    assert: `(() => {
-      const dock = document.querySelector('.lyricsdock')
-      if (!dock) return false
-      if ((dock.textContent ?? '').includes('Текста пока нет')) return false
-      return !!dock.querySelector('.lyrics__plain p, .lyrics__lines .lyrics__line')
-    })()`,
-    assertName: 'the lyrics dock renders the saved text'
   }
 ]
 
@@ -514,6 +533,101 @@ async function main() {
     }
 
     for (const problem of cdp.problems) failures.push(problem)
+
+    /* The lyrics "sources" tab. Written with real waits rather than fixed
+     * delays: the search is a two-part answer (the pack is local and lands at
+     * once, Wikisource is a network round trip allowed twenty seconds), so
+     * asserting on a stopwatch only ever measured the network. */
+    try {
+      const openSourcesTab = async () => {
+        const dockOpen = await cdp.evaluate(`!!document.querySelector('.lyricsdock')`)
+        if (!dockOpen) {
+          await cdp.evaluate(`(() => {
+            const button = [...document.querySelectorAll('.playerbar button')]
+              .find((item) => (item.getAttribute('title') ?? '').startsWith('Текст'))
+            button?.click()
+          })()`)
+          await cdp.waitFor('the lyrics dock', "!!document.querySelector('.lyricsdock')", 10_000)
+        }
+        await cdp.evaluate(
+          `document.querySelector('.lyricsdock button[title^="Действия с текстом"]')?.click()`
+        )
+        await cdp.waitFor('the lyrics menu', "document.querySelectorAll('.menu__item').length > 0", 5_000)
+        await cdp.evaluate(`[...document.querySelectorAll('.menu__item')]
+          .find((item) => (item.textContent ?? '').includes('Найти в открытых базах'))?.click()`)
+        await cdp.waitFor(
+          'the lyrics workshop search box',
+          "!!document.querySelector('.modal .searchbar--inline .input')",
+          10_000
+        )
+      }
+
+      await openSourcesTab()
+      await cdp.evaluate(`(() => {
+        const input = document.querySelector('.modal .searchbar--inline .input')
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+        setter.call(input, 'Amazing Grace')
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      })()`)
+      await cdp.waitFor(
+        'the search box to take the typed query',
+        `document.querySelector('.modal .searchbar--inline .input')?.value === 'Amazing Grace'`,
+        5_000
+      )
+      await cdp.waitFor(
+        'the sources search button to become pressable',
+        `(() => {
+          const button = document.querySelector('.modal .searchbar--inline .btn--primary')
+          return !!button && !button.disabled
+        })()`,
+        5_000
+      )
+      await cdp.evaluate(`document.querySelector('.modal .searchbar--inline .btn--primary')?.click()`)
+      let found = true
+      try {
+        await cdp.waitFor(
+          'the bundled pack to answer',
+          `[...document.querySelectorAll('.source-block')].some((block) =>
+            (block.textContent ?? '').includes('Amazing Grace'))`,
+          25_000
+        )
+      } catch {
+        found = false
+      }
+      process.stdout.write(
+        `${found ? paint(32, '  ok  ') : paint(31, ' FAIL ')} the bundled pack answers a sources query\n`
+      )
+      if (!found) {
+        failures.push('the bundled pack never answered a sources query')
+        const blocks = await cdp
+          .evaluate(`[...document.querySelectorAll('.modal .source-block')].map((block) => block.textContent.slice(0, 80))`)
+          .catch(() => [])
+        process.stdout.write(`${paint(90, `        .. ${JSON.stringify(blocks)}`)}\n`)
+      }
+
+      if (found) {
+        await cdp.evaluate(`(() => {
+          const row = [...document.querySelectorAll('.source-block .source-list__row')]
+            .find((item) => (item.textContent ?? '').includes('Amazing Grace'))
+          row?.querySelector('button')?.click()
+        })()`)
+        await cdp.waitFor(
+          'the applied lyric to reach the dock',
+          `(() => {
+            const dock = document.querySelector('.lyricsdock')
+            if (!dock || (dock.textContent ?? '').includes('Текста пока нет')) return false
+            return !!dock.querySelector('.lyrics__plain p, .lyrics__lines .lyrics__line')
+          })()`,
+          10_000
+        )
+        process.stdout.write(`${paint(32, '  ok  ')} a bundled lyric can be applied to a track\n`)
+      }
+      await cdp.evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+      await sleep(400)
+    } catch (error) {
+      failures.push(`the lyrics sources tab: ${error.message}`)
+      process.stdout.write(`${paint(31, ' FAIL ')} the lyrics sources tab (${error.message})\n`)
+    }
 
     /* The archive.org round trip needs the network, so this asserts the UI
      * settles one way or the other (results or a clear empty state) rather than
@@ -810,6 +924,249 @@ async function main() {
     } catch (error) {
       failures.push(`local import of untagged downloads: ${error.message}`)
       process.stdout.write(`${paint(31, ' FAIL ')} local import of untagged downloads (${error.message})\n`)
+    }
+
+    /* Lyrics panel and the big screen, driven by *real* mouse presses. The
+     * lyrics menu used to be closed by its own dismissal listener before a real
+     * click could land, the dock's close button sat exactly on top of the menu
+     * button, and picking a line scrolled the list to the wrong place. A
+     * programmatic `element.click()` sees none of that. */
+    try {
+      const report = (ok, label, detail = '') => {
+        process.stdout.write(
+          `${ok ? paint(32, '  ok  ') : paint(31, ' FAIL ')} ${label}${ok || !detail ? '' : ` — ${detail}`}\n`
+        )
+        if (!ok) failures.push(label)
+      }
+      const wavName = 'Kolaars Karaoke - Smoke.wav'
+      const wavPath = path.join(fixtureDir, wavName)
+      writeFileSync(wavPath, makeWav(12))
+      const imported = await cdp.evaluate(
+        `window.kolaars.local.importPaths([${JSON.stringify(wavPath)}])`
+      )
+      const track = imported?.tracks?.[0] ?? null
+      if (!track) throw new Error('the wav fixture did not import')
+      await cdp.evaluate(
+        `window.kolaars.lyrics.save(${JSON.stringify({
+          trackId: track.id,
+          plain: SMOKE_LINES.map((line) => line.text).join('\n'),
+          synced: SMOKE_LINES,
+          meta: {},
+          origin: 'user',
+          provider: null,
+          language: null,
+          updatedAt: Date.now()
+        })})`
+      )
+
+      await cdp.evaluate('location.reload()')
+      await cdp.waitFor('the app shell after the reload', "!!document.querySelector('.navitem')", 25_000)
+      await sleep(1_500)
+      await cdp.evaluate(`(() => {
+        const items = [...document.querySelectorAll('.navitem')]
+        items.find((item) => (item.textContent ?? '').includes('Библиотека'))?.click()
+      })()`)
+      await sleep(900)
+      const rowIndex = await cdp.evaluate(`(() => {
+        const rows = [...document.querySelectorAll('.trackrow')]
+        return rows.findIndex((row) => (row.textContent ?? '').includes('Kolaars Karaoke'))
+      })()`)
+      report(rowIndex >= 0, 'the playable import shows up in the library', `row ${rowIndex}`)
+      if (rowIndex >= 0) {
+        await cdp.evaluate(
+          `document.querySelectorAll('.trackrow')[${rowIndex}].querySelector('.trackrow__titlebtn').click()`
+        )
+        await cdp.waitFor(
+          'the wav to start playing',
+          `document.querySelector('.playerbar__title')?.textContent?.trim() === 'Smoke'`,
+          15_000
+        )
+        await cdp.evaluate(`(() => {
+          const button = [...document.querySelectorAll('.playerbar button')]
+            .find((item) => (item.getAttribute('title') ?? '').startsWith('Текст'))
+          button?.click()
+        })()`)
+        await cdp.waitFor(
+          'the docked lyrics',
+          "document.querySelectorAll('.lyrics--panel .lyrics__line').length > 0",
+          10_000
+        )
+        await sleep(1_200)
+
+        /* Picking a line: hover the panel first (that is what pauses the
+         * auto-scroll), then measure and press the line. */
+        const container = await cdp.box('.lyrics--panel .lyrics__scroll')
+        await cdp.hover(container.x, container.y)
+        await sleep(250)
+        const aimed = await cdp.evaluate(`(() => {
+          const container = document.querySelector('.lyrics--panel .lyrics__scroll')
+          const box = container.getBoundingClientRect()
+          const lines = [...document.querySelectorAll('.lyrics--panel .lyrics__line')]
+          const active = lines.findIndex((line) => line.className.includes('--active'))
+          const inside = lines
+            .map((element, index) => ({ index, rect: element.getBoundingClientRect() }))
+            .filter(({ rect }) => rect.top >= box.top + 4 && rect.bottom <= box.bottom - 4)
+          const pick = inside.find(({ index }) => index >= active + 4) ?? inside[inside.length - 1]
+          if (!pick) return null
+          return {
+            index: pick.index,
+            x: Math.round(pick.rect.left + pick.rect.width / 2),
+            y: Math.round(pick.rect.top + pick.rect.height / 2)
+          }
+        })()`)
+        if (!aimed) throw new Error('no visible lyric line to aim at')
+        await cdp.press(aimed.x, aimed.y)
+        await sleep(500)
+        const picked = await cdp.evaluate(`(() => {
+          const container = document.querySelector('.lyrics--panel .lyrics__scroll')
+          const box = container.getBoundingClientRect()
+          const lines = [...document.querySelectorAll('.lyrics--panel .lyrics__line')]
+          const rect = lines[${aimed.index}].getBoundingClientRect()
+          return {
+            active: lines.findIndex((line) => line.className.includes('--active')),
+            inView: rect.top >= box.top - 2 && rect.bottom <= box.bottom + 2,
+            centre: Math.round(rect.top + rect.height / 2 - box.top),
+            viewCentre: Math.round(box.height / 2),
+            scrollTop: Math.round(container.scrollTop)
+          }
+        })()`)
+        report(
+          Math.abs(picked.active - aimed.index) <= 1,
+          'pressing a lyric line seeks to that line',
+          `aimed ${aimed.index}, active ${picked.active}`
+        )
+        report(
+          picked.inView,
+          'the picked lyric line stays in view',
+          `line centre ${picked.centre}px of ${picked.viewCentre}px, scrollTop ${picked.scrollTop}`
+        )
+
+        /* The lyrics menu, pressed for real. */
+        const pressMenu = async (label) => {
+          const found = await cdp.evaluate(`(() => {
+            const item = [...document.querySelectorAll('.menu__item')]
+              .find((node) => (node.textContent ?? '').includes(${JSON.stringify(label)}))
+            if (!item) return null
+            const rect = item.getBoundingClientRect()
+            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+          })()`)
+          if (!found) throw new Error(`no menu item "${label}"`)
+          await cdp.press(found.x, found.y)
+          await sleep(500)
+        }
+        const openLyricsMenu = async () => {
+          const trigger = await cdp.box('.lyrics--panel .lyrics__head .iconbtn')
+          await cdp.press(trigger.x, trigger.y)
+          await sleep(450)
+          return cdp.evaluate(
+            `[...document.querySelectorAll('.menu__item')].map((item) => item.textContent.trim())`
+          )
+        }
+        const menu = await openLyricsMenu()
+        report(menu.length > 0, 'the lyrics menu opens under a real press', `${menu.length} items`)
+
+        await pressMenu('Редактировать текст')
+        const workshop = await cdp.evaluate(`(() => {
+          const area = document.querySelector('.modal__body textarea')
+          return { open: !!document.querySelector('.modal'), lines: area?.value.split('\\n').length ?? 0 }
+        })()`)
+        report(
+          workshop.open && workshop.lines === SMOKE_LINES.length,
+          'the editor opens with the saved text',
+          `${workshop.lines} lines`
+        )
+        await cdp.evaluate(`(() => {
+          const area = document.querySelector('.modal__body textarea')
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          setter.call(area, area.value + '\\nСтрока, добавленная проверкой')
+          area.dispatchEvent(new Event('input', { bubbles: true }))
+        })()`)
+        await sleep(250)
+        const saveButton = await cdp.evaluate(`(() => {
+          const button = [...document.querySelectorAll('.modal button')]
+            .find((node) => (node.textContent ?? '').includes('Сохранить'))
+          if (!button) return null
+          const rect = button.getBoundingClientRect()
+          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+        })()`)
+        if (saveButton) await cdp.press(saveButton.x, saveButton.y)
+        await sleep(800)
+        const edited = await cdp.evaluate(
+          `window.kolaars.lyrics.get(${JSON.stringify({ id: track.id, title: track.title, artist: track.artist })})`
+        )
+        report(
+          String(edited?.saved?.plain ?? '').includes('Строка, добавленная проверкой'),
+          'editing the text saves the new wording'
+        )
+        report(
+          edited?.saved?.synced?.length === SMOKE_LINES.length,
+          'editing the text keeps the karaoke timings',
+          `${edited?.saved?.synced?.length ?? 0} of ${SMOKE_LINES.length}`
+        )
+
+        await openLyricsMenu()
+        await pressMenu('Удалить пользовательский текст')
+        const deleted = await cdp.evaluate(
+          `window.kolaars.lyrics.get(${JSON.stringify({ id: track.id, title: track.title, artist: track.artist })})`
+        )
+        report(deleted?.saved === null, 'deleting the user text removes it', JSON.stringify(deleted?.saved))
+
+        /* The big screen: a seek bar worth the whole width and grain on the art. */
+        await cdp.evaluate(`document.querySelector('.playerbar__coverbtn')?.click()`)
+        await cdp.waitFor('the now playing screen', "!!document.querySelector('.nowplaying')", 10_000)
+        await sleep(900)
+        const screen = await cdp.evaluate(`(() => {
+          const bar = document.querySelector('.seekbar--lg')
+          const grain = document.querySelector('.nowplaying__grain')
+          const wrap = document.querySelector('.nowplaying__artwrap')
+          const size = (element) =>
+            element
+              ? { w: Math.round(element.getBoundingClientRect().width), h: Math.round(element.getBoundingClientRect().height) }
+              : null
+          return {
+            window: window.innerWidth,
+            bar: size(bar),
+            grain: size(grain),
+            grainUnderArt: Boolean(wrap && grain && wrap.contains(grain)),
+            blend: grain ? getComputedStyle(grain).mixBlendMode : null
+          }
+        })()`)
+        const share = screen.bar ? screen.bar.w / screen.window : 0
+        report(
+          share >= 0.6,
+          'the big screen seek bar spans the window',
+          `${screen.bar?.w ?? 0}px of ${screen.window}px`
+        )
+        report(
+          Boolean(screen.grain?.w) && screen.grainUnderArt && screen.blend !== 'normal',
+          'grain lies over the big screen artwork',
+          JSON.stringify(screen)
+        )
+        const flickers = await cdp.evaluate(`(async () => {
+          const canvas = document.querySelector('.nowplaying__grain')
+          if (!canvas) return false
+          const first = canvas.toDataURL()
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          return canvas.toDataURL() !== first
+        })()`)
+        report(Boolean(flickers), 'the grain animates')
+        if (shotDir) {
+          mkdirSync(shotDir, { recursive: true })
+          const art = await cdp.box('.nowplaying__artwrap')
+          const zoom = await cdp.send('Page.captureScreenshot', {
+            format: 'png',
+            clip: { x: art.x - art.w / 2, y: art.y - art.h / 2, width: art.w, height: art.h, scale: 2 }
+          })
+          writeFileSync(path.join(shotDir, '10-grain-zoom.png'), Buffer.from(zoom.data, 'base64'))
+        }
+        await cdp.evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`)
+        await sleep(400)
+      }
+    } catch (error) {
+      failures.push(`lyrics panel and big screen: ${error.message}`)
+      process.stdout.write(
+        `${paint(31, ' FAIL ')} lyrics panel and big screen (${error.message})\n`
+      )
     }
   } catch (error) {
     failures.push(error.message)

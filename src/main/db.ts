@@ -26,6 +26,7 @@ import {
   makeId
 } from '@shared/defaults'
 import type { PersistedDb, Profile, ProfilesRegistry } from '@shared/types'
+import { allowMediaPathsOfTracks } from './media'
 
 let registry: ProfilesRegistry | null = null
 let activeDir = ''
@@ -296,6 +297,10 @@ export async function loadDb(): Promise<PersistedDb> {
     }
     cache = createDefaultDb()
   }
+  // The media allowlist lives in memory, so it has to be rebuilt from the
+  // document it just read: without this, covers and audio of files imported in
+  // an earlier session would be refused after a restart or a profile switch.
+  allowMediaPathsOfTracks(Object.values(cache.tracks))
   return cache
 }
 

@@ -19,6 +19,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { deflateSync } from 'node:zlib'
 
 const root = path.resolve(import.meta.dirname, '..')
 const keepOpen = process.argv.includes('--keep-open')
@@ -28,6 +29,8 @@ const exe =
   path.join(root, 'release', 'win-unpacked', 'Kolaars Music.exe')
 
 const PORT = Number(process.env.SMOKE_PORT ?? 9334)
+/** The restart check reopens the app; a second port avoids a lingering endpoint. */
+const SECOND_PORT = PORT + 1
 const userDataDir = path.join(os.tmpdir(), `kolaars-packed-${process.pid}`)
 const fixtureDir = path.join(os.tmpdir(), `kolaars-fixture-${process.pid}`)
 
@@ -69,6 +72,60 @@ writeFileSync(
   path.join(fixtureDir, 'Kolaars Tone.lrc'),
   '[ti:Kolaars Tone]\n[ar:Kolaars QA]\n[00:00.50]Первая строка\n[00:02.00]Вторая строка\n'
 )
+
+/* A real image beside the track: the sidecar cover convention is shared with
+ * the music downloaders, and a text file cannot prove that an <img> renders. */
+const CRC_TABLE = (() => {
+  const table = new Int32Array(256)
+  for (let n = 0; n < 256; n++) {
+    let c = n
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    table[n] = c
+  }
+  return table
+})()
+
+function crc32(buffer) {
+  let crc = 0xffffffff
+  for (const byte of buffer) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8)
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function pngChunk(type, data) {
+  const length = Buffer.alloc(4)
+  length.writeUInt32BE(data.length)
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data])
+  const crc = Buffer.alloc(4)
+  crc.writeUInt32BE(crc32(body))
+  return Buffer.concat([length, body, crc])
+}
+
+/** A small solid-colour PNG, minimally valid so Chromium will decode it. */
+function makePng(width = 16, height = 16, [r, g, b] = [120, 90, 220]) {
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0)
+  header.writeUInt32BE(height, 4)
+  header[8] = 8 // bit depth
+  header[9] = 2 // truecolour
+  const raw = Buffer.alloc(height * (1 + width * 3))
+  for (let y = 0; y < height; y++) {
+    const row = y * (1 + width * 3)
+    for (let x = 0; x < width; x++) {
+      raw[row + 1 + x * 3] = r
+      raw[row + 2 + x * 3] = g
+      raw[row + 3 + x * 3] = b
+    }
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', header),
+    pngChunk('IDAT', deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0))
+  ])
+}
+
+const coverPath = path.join(fixtureDir, 'Kolaars Tone.png')
+writeFileSync(coverPath, makePng())
 
 /* ------------------------------------------------------------------ */
 /* Chrome DevTools Protocol client                                     */
@@ -200,26 +257,88 @@ const CHECKS = [
 
 async function main() {
   const failures = []
-  const child = spawn(exe, [`--remote-debugging-port=${PORT}`, `--user-data-dir=${userDataDir}`], {
-    stdio: ['ignore', 'pipe', 'pipe']
-  })
   const output = []
-  child.stdout.on('data', (chunk) => output.push(String(chunk)))
-  child.stderr.on('data', (chunk) => output.push(String(chunk)))
+  let child = null
+  let cdp = null
 
-  let cdp
+  const launch = (port) => {
+    child = spawn(exe, [`--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+    child.stdout.on('data', (chunk) => output.push(String(chunk)))
+    child.stderr.on('data', (chunk) => output.push(String(chunk)))
+    return child
+  }
+
+  const waitForExit = (timeout = 10_000) =>
+    new Promise((resolve) => {
+      if (!child || child.exitCode !== null) return resolve(true)
+      const timer = setTimeout(() => resolve(false), timeout)
+      child.once('exit', () => {
+        clearTimeout(timer)
+        resolve(true)
+      })
+    })
+
+  const stop = async () => {
+    if (cdp) await cdp.send('Browser.close').catch(() => undefined)
+    cdp = null
+    const exited = await waitForExit(8_000)
+    if (!exited && child?.pid) {
+      spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+      await sleep(500)
+    }
+  }
+
+  /**
+   * Waits for the devtools endpoint, attaches, and hooks the audio constructor
+   * before the bundle runs so the player's detached `new Audio()` is visible.
+   */
+  const attach = async (port, { reload = true } = {}) => {
+    let target
+    const deadline = Date.now() + 40_000
+    for (;;) {
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/json/list`)
+        const targets = await response.json()
+        target = targets.find((t) => t.type === 'page' && t.webSocketDebuggerUrl)
+        if (target) break
+      } catch {
+        /* the devtools endpoint is not up yet */
+      }
+      if (Date.now() > deadline) throw new Error('the packaged app never exposed a devtools target')
+      await sleep(400)
+    }
+    process.stdout.write(`  exe  ${exe}\n`)
+    process.stdout.write(`  url  ${target.url}\n`)
+
+    const socket = new WebSocket(target.webSocketDebuggerUrl)
+    const client = await new Promise((resolve, reject) => {
+      socket.addEventListener('open', () => resolve(new Cdp(socket)), { once: true })
+      socket.addEventListener('error', () => reject(new Error('could not open the devtools socket')), {
+        once: true
+      })
+    })
+    await client.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `(() => {
+        window.__kolaarsProbeAudios = []
+        const Original = window.Audio
+        window.Audio = function (...args) {
+          const element = new Original(...args)
+          window.__kolaarsProbeAudios.push(element)
+          return element
+        }
+        window.Audio.prototype = Original.prototype
+      })()`
+    })
+    if (reload) await client.send('Page.reload')
+    await client.waitFor('the app shell', "!!document.querySelector('.app-shell')", 40_000)
+    return client
+  }
 
   const finish = async (code) => {
-    try {
-      if (cdp) await cdp.send('Browser.close').catch(() => undefined)
-    } catch {
-      /* ignore */
-    }
+    await stop()
     if (!keepOpen) {
-      await sleep(400)
-      if (child.exitCode === null) {
-        spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
-      }
       try {
         rmSync(userDataDir, { recursive: true, force: true })
       } catch {
@@ -243,48 +362,8 @@ async function main() {
   }
 
   try {
-    let target
-    const deadline = Date.now() + 40_000
-    for (;;) {
-      try {
-        const response = await fetch(`http://127.0.0.1:${PORT}/json/list`)
-        const targets = await response.json()
-        target = targets.find((t) => t.type === 'page' && t.webSocketDebuggerUrl)
-        if (target) break
-      } catch {
-        /* the devtools endpoint is not up yet */
-      }
-      if (Date.now() > deadline) throw new Error('the packaged app never exposed a devtools target')
-      await sleep(400)
-    }
-    process.stdout.write(`  exe  ${exe}\n`)
-    process.stdout.write(`  url  ${target.url}\n`)
-
-    const socket = new WebSocket(target.webSocketDebuggerUrl)
-    cdp = await new Promise((resolve, reject) => {
-      socket.addEventListener('open', () => resolve(new Cdp(socket)), { once: true })
-      socket.addEventListener('error', () => reject(new Error('could not open the devtools socket')), {
-        once: true
-      })
-    })
-
-    // The player owns a detached `new Audio()`, so hook the constructor before
-    // the bundle runs, then reload once.
-    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
-      source: `(() => {
-        window.__kolaarsProbeAudios = []
-        const Original = window.Audio
-        window.Audio = function (...args) {
-          const element = new Original(...args)
-          window.__kolaarsProbeAudios.push(element)
-          return element
-        }
-        window.Audio.prototype = Original.prototype
-      })()`
-    })
-    await cdp.send('Page.reload')
-
-    await cdp.waitFor('the app shell', "!!document.querySelector('.app-shell')", 40_000)
+    launch(PORT)
+    cdp = await attach(PORT)
     await cdp.waitFor('the seed catalog', "document.querySelectorAll('.card').length > 0", 40_000)
     await sleep(1_500)
 
@@ -390,6 +469,89 @@ async function main() {
       if (!(state.currentTime > 0)) failures.push(`kmedia:// playback never advanced (currentTime ${state.currentTime})`)
     } catch (error) {
       failures.push(`local import / kmedia://: ${error.message}`)
+    }
+
+    /* Restart regression.
+     *
+     * The kmedia:// allowlist lives in memory only, so a fresh process starts
+     * with nothing allowed: every local track came back unplayable and every
+     * sidecar cover blank, with no hint why. Close the app for real, reopen it
+     * on the same profile, and use the track the way the UI does. */
+    try {
+      const before = await cdp.evaluate(`(async () => {
+        const db = await window.kolaars.store.load()
+        const row = db.tracks.find((track) => track.filePath === ${JSON.stringify(wavPath)})
+        return row ? { artwork: row.artwork, streamUrl: row.streamUrl } : null
+      })()`)
+      if (!before?.artwork) failures.push('the sidecar cover was not attached at import time')
+
+      process.stdout.write(`  ..  restarting on the same profile\n`)
+      await stop()
+      launch(SECOND_PORT)
+      cdp = await attach(SECOND_PORT)
+      await sleep(2_000)
+
+      const after = await cdp.evaluate(`(async () => {
+        const db = await window.kolaars.store.load()
+        const row = db.tracks.find((track) => track.filePath === ${JSON.stringify(wavPath)})
+        if (!row) return { missing: true, tracks: db.tracks.length }
+        const audio = new Audio(row.streamUrl)
+        const played = await audio.play().then(() => true).catch((error) => 'play() rejected: ' + error.message)
+        await new Promise((resolve) => setTimeout(resolve, 2_500))
+        return {
+          streamUrl: row.streamUrl,
+          artwork: String(row.artwork ?? '').slice(0, 48),
+          played,
+          readyState: audio.readyState,
+          currentTime: +audio.currentTime.toFixed(2),
+          error: audio.error ? { code: audio.error.code, message: audio.error.message } : null
+        }
+      })()`)
+      process.stdout.write(`  ..  playback after restart: ${JSON.stringify(after)}\n`)
+
+      if (after?.missing) {
+        failures.push(`the local track was lost after a restart (${after.tracks} tracks)`)
+      } else {
+        if (!(after.readyState >= 2)) {
+          failures.push(
+            `local track not playable after a restart (readyState ${after.readyState}, error ${JSON.stringify(after.error)})`
+          )
+        }
+        if (!(after.currentTime > 0)) {
+          failures.push(`local playback did not advance after a restart (currentTime ${after.currentTime})`)
+        }
+
+        /* The cover has to survive the restart too — that is the half of the
+         * bug a user notices first, because the library fills with blanks. */
+        await cdp.evaluate(`(() => {
+          const item = [...document.querySelectorAll('.navitem')]
+            .find((node) => (node.textContent ?? '').includes('Библиотека'))
+          item?.click()
+        })()`)
+        await cdp.waitFor('the library rows', "document.querySelectorAll('.trackrow').length > 0", 20_000)
+        await sleep(1_500)
+        const cover = await cdp.evaluate(`(() => {
+          const row = [...document.querySelectorAll('.trackrow')]
+            .find((node) => (node.textContent ?? '').includes('Kolaars Tone'))
+          if (!row) return { found: false }
+          const image = row.querySelector('img')
+          return {
+            found: true,
+            width: image?.naturalWidth ?? 0,
+            height: image?.naturalHeight ?? 0,
+            src: String(image?.currentSrc ?? image?.src ?? '').slice(0, 24)
+          }
+        })()`)
+        process.stdout.write(`  ..  library cover after restart: ${JSON.stringify(cover)}\n`)
+        if (!cover.found) failures.push('the imported track is missing from the library after a restart')
+        else if (!(cover.width > 0)) {
+          failures.push(`the sidecar cover did not render after a restart (${JSON.stringify(cover)})`)
+        } else {
+          process.stdout.write(`${paint(32, '  ok  ')} local audio and artwork survive a restart\n`)
+        }
+      }
+    } catch (error) {
+      failures.push(`restart regression: ${error.message}`)
     }
 
     if (shotDir) {

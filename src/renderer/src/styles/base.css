@@ -1229,13 +1229,19 @@ kbd {
   height: 16px;
 }
 
-.seekbar--lg::-webkit-slider-runnable-track {
-  height: 6px;
+/* The base `input[type='range']` rules are more specific than a lone class, so
+ * the large bar has to out-specify them or it keeps the 4 px track. */
+.seekbar.seekbar--lg {
+  height: 22px;
 }
 
-.seekbar--lg::-webkit-slider-thumb {
-  width: 16px;
-  height: 16px;
+.seekbar.seekbar--lg::-webkit-slider-runnable-track {
+  height: 8px;
+}
+
+.seekbar.seekbar--lg::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
   margin-top: -5px;
 }
 

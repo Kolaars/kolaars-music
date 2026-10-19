@@ -21,6 +21,8 @@ interface LyricsState {
   bundledMatches: BundledSong[]
   loading: boolean
   searching: boolean
+  /** Separate from `searching`: the pack is local and must not wait on LRCLIB. */
+  sourcesSearching: boolean
   lastQuery: string
 
   load: (track: { id: string; title: string; artist: string }) => Promise<void>
@@ -46,6 +48,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
   bundledMatches: [],
   loading: false,
   searching: false,
+  sourcesSearching: false,
   lastQuery: '',
 
   load: async (track) => {
@@ -73,7 +76,9 @@ export const useLyrics = create<LyricsState>((set, get) => ({
       candidates: [],
       wikisource: [],
       bundledMatches: [],
-      loading: false
+      loading: false,
+      searching: false,
+      sourcesSearching: false
     }),
 
   searchOnline: async (track) => {
@@ -97,7 +102,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
   },
 
   searchSources: async (query) => {
-    set({ searching: true, lastQuery: query })
+    set({ sourcesSearching: true, lastQuery: query })
     try {
       // The bundled pack lives in the app, so show those hits immediately
       // instead of hiding them behind the Wikisource round trip.
@@ -110,11 +115,11 @@ export const useLyrics = create<LyricsState>((set, get) => ({
       set({
         bundledMatches: result.bundled.length > 0 ? result.bundled : local,
         wikisource: result.wikisource,
-        searching: false
+        sourcesSearching: false
       })
     } catch (error) {
       if (get().lastQuery !== query) return
-      set({ searching: false })
+      set({ sourcesSearching: false })
       useApp.getState().toast(`Ошибка поиска источников: ${errorMessage(error)}`, 'error')
     }
   },

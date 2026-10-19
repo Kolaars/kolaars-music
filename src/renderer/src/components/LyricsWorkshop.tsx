@@ -29,6 +29,20 @@ function meaningfulLines(plain: string): string[] {
     .filter(Boolean)
 }
 
+/**
+ * Rebuilds the sync list from the edited text.
+ *
+ * A line the author did not touch keeps its timing, wherever it moved to; a
+ * line that was rewritten keeps the timing of whatever sat in its place.
+ */
+function mergeSyncLines(current: SyncLine[], plain: string): SyncLine[] {
+  const previous = new Map(current.map((line) => [line.text, line.time]))
+  return meaningfulLines(plain).map((text, index) => ({
+    text,
+    time: previous.get(text) ?? current[index]?.time ?? null
+  }))
+}
+
 export function LyricsWorkshop({
   track,
   tab,
@@ -44,6 +58,7 @@ export function LyricsWorkshop({
   const wikisource = useLyrics((state) => state.wikisource)
   const bundledMatches = useLyrics((state) => state.bundledMatches)
   const searching = useLyrics((state) => state.searching)
+  const sourcesSearching = useLyrics((state) => state.sourcesSearching)
   const saveLyrics = useLyrics((state) => state.save)
 
   const [active, setActive] = useState<WorkshopTab>('text')
@@ -87,15 +102,7 @@ export function LyricsWorkshop({
   /* Re-derive sync lines when the author edits the text tab. */
   useEffect(() => {
     if (active !== 'sync') return
-    setLines((current) => {
-      const texts = meaningfulLines(plain)
-      const previous = new Map(current.map((line) => [line.text, line.time]))
-      const next: SyncLine[] = texts.map((text, index) => ({
-        text,
-        time: previous.get(text) ?? current[index]?.time ?? null
-      }))
-      return next
-    })
+    setLines((current) => mergeSyncLines(current, plain))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, plain])
 
@@ -128,7 +135,9 @@ export function LyricsWorkshop({
   const missingTimes = lines.filter((line) => line.time == null).length
 
   const buildLyrics = (): Lyrics => {
-    const synced: LyricLine[] = lines
+    // Timings are rebuilt from the text being saved, so editing on the text tab
+    // cannot leave the karaoke lines pointing at the previous wording.
+    const synced: LyricLine[] = mergeSyncLines(lines, plain)
       .filter((line): line is { text: string; time: number } => line.time != null)
       .map((line) => ({ text: line.text, time: line.time }))
       .sort((a, b) => a.time - b.time)
@@ -400,13 +409,13 @@ export function LyricsWorkshop({
             <button
               type="button"
               className="btn btn--primary"
-              disabled={searching}
+              disabled={sourcesSearching}
               onClick={() => {
                 void useLyrics.getState().searchSources(query)
                 setQueryLoaded(true)
               }}
             >
-              {searching ? 'Поиск…' : 'Искать'}
+              {sourcesSearching ? 'Поиск…' : 'Искать'}
             </button>
           </div>
 

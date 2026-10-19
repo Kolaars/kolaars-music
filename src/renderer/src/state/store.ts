@@ -425,6 +425,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   removeTrack: async (trackId) => {
     await api.library.removeTrack(trackId)
+    forgetQueuedTrack(trackId)
     await get().refreshLibrary()
     get().toast('Трек удалён из библиотеки')
   },
@@ -736,6 +737,17 @@ let stopPlayback: () => void = () => {}
  */
 export function registerPlaybackReset(fn: () => void): void {
   stopPlayback = fn
+}
+
+let forgetQueuedTrack: (trackId: string) => void = () => {}
+
+/**
+ * The player registers here how to take a track out of the queue, for the same
+ * reason: removing a track from the library must not leave it queued, and the
+ * store cannot reach into `state/player.ts` itself.
+ */
+export function registerQueueForgetter(fn: (trackId: string) => void): void {
+  forgetQueuedTrack = fn
 }
 
 function stopPlaybackForProfileSwitch(): void {

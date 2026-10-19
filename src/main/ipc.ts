@@ -264,8 +264,26 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
       delete db.tracks[id]
       delete db.lyrics[id]
       db.favorites = db.favorites.filter((f) => f !== id)
+      db.history = db.history.filter((h) => h.trackId !== id)
       for (const playlist of db.playlists) {
         playlist.trackIds = playlist.trackIds.filter((t) => t !== id)
+      }
+      // The queue must forget the track as well, otherwise the player would
+      // come back to a file that is no longer in the library.
+      const current = db.session.queue[db.session.queueIndex]?.uid
+      db.session.queue = db.session.queue.filter((item) => item.trackId !== id)
+      if (current) {
+        const index = db.session.queue.findIndex((item) => item.uid === current)
+        if (index >= 0) {
+          db.session.queueIndex = index
+        } else {
+          // The playing track itself is gone: step back to what is left, so a
+          // restart still restores the queue instead of falling to nothing.
+          const fallback = Math.min(Math.max(0, db.session.queueIndex - 1), db.session.queue.length - 1)
+          db.session.queueIndex = db.session.queue.length > 0 ? fallback : -1
+          db.session.trackId = db.session.queue[db.session.queueIndex]?.trackId ?? null
+          db.session.position = 0
+        }
       }
       return existed
     })

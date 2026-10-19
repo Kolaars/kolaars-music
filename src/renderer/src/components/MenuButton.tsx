@@ -56,18 +56,39 @@ export function MenuButton({
   useEffect(() => {
     if (!open) return
     const close = (): void => setOpen(false)
+    /**
+     * A press inside the panel must not dismiss it. This listener sits on the
+     * capture phase, so it runs *before* the item's own click — closing here
+     * would unmount the very button the user is pressing and the action would
+     * never run.
+     */
+    const onPointerDown = (event: PointerEvent): void => {
+      if (panelRef.current?.contains(event.target as Node)) return
+      setOpen(false)
+    }
+    /**
+     * Only a scroll that moves the anchor is a problem. Menus placed beside a
+     * scrolling list (the lyrics panel scrolls on its own while a track plays)
+     * used to close the moment they opened.
+     */
+    const onScroll = (event: Event): void => {
+      const target = event.target
+      if (target === document || target === window) setOpen(false)
+      else if (target instanceof Node && triggerRef.current && target.contains(triggerRef.current)) {
+        setOpen(false)
+      }
+    }
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') close()
     }
-    // `capture` so a click on another row's menu closes this one first.
-    window.addEventListener('pointerdown', close, true)
+    window.addEventListener('pointerdown', onPointerDown, true)
     window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
+    window.addEventListener('scroll', onScroll, true)
     window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('pointerdown', close, true)
+      window.removeEventListener('pointerdown', onPointerDown, true)
       window.removeEventListener('resize', close)
-      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('keydown', onKey)
     }
   }, [open])

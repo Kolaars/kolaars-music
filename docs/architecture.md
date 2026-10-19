@@ -168,6 +168,11 @@ Kolaars Music — обычное Electron-приложение из трёх п�
 Схема объявляется до `app.whenReady()` (`registerMediaScheme`) и устанавливается после
 (`registerMediaProtocol`).
 
+Список разрешённых существует только в памяти процесса. Чтобы после перезапуска библиотека не
+осталась с пустыми обложками и нерабочим воспроизведением, `loadDb()` при каждом чтении профиля
+заново разрешает то, на что ссылаются сохранённые треки (`allowMediaPathsOfTracks`) — звуковой
+файл и картинку рядом с ним.
+
 ## Безопасность
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`;

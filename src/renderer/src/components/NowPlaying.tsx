@@ -9,6 +9,7 @@ import { useApp, useIsFavorite, useTrack } from '../state/store'
 import { usePlayer } from '../state/player'
 import { api } from '../lib/api'
 import { Cover } from './Cover'
+import { GrainCanvas } from './GrainCanvas'
 import { Icon } from './Icon'
 import { LyricsPanel } from './LyricsPanel'
 import { SeekBar, TransportControls, VolumeBar } from './PlayerBar'
@@ -51,13 +52,16 @@ export function NowPlaying(): JSX.Element {
 
       <div className="nowplaying__body">
         <section className="nowplaying__art">
-          <Cover
-            src={track?.artwork}
-            alt={track?.title ?? 'Нет трека'}
-            rounded="lg"
-            className="nowplaying__cover"
-            icon="disc"
-          />
+          <div className="nowplaying__artwrap">
+            <Cover
+              src={track?.artwork}
+              alt={track?.title ?? 'Нет трека'}
+              rounded="lg"
+              className="nowplaying__cover"
+              icon="disc"
+            />
+            <GrainCanvas className="nowplaying__grain" />
+          </div>
 
           <div className="nowplaying__info">
             <h1 className="nowplaying__title">{track?.title ?? 'Ничего не играет'}</h1>
@@ -97,43 +101,45 @@ export function NowPlaying(): JSX.Element {
               </button>
             ) : null}
           </div>
-
-          <div className="nowplaying__progress">
-            <SeekBar
-              position={position}
-              duration={duration}
-              className="seekbar--lg"
-              onSeek={(seconds) => usePlayer.getState().seek(seconds)}
-            />
-            <div className="nowplaying__times">
-              <span>{formatTime(position)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
-          </div>
-
-          <div className="nowplaying__controls">
-            <TransportControls size="lg" />
-            <div className="nowplaying__extras">
-              <button
-                type="button"
-                className={`iconbtn${favorite ? ' iconbtn--active' : ''}`}
-                title={favorite ? 'Убрать из избранного (F)' : 'В избранное (F)'}
-                disabled={!track}
-                onClick={() => {
-                  if (currentId) void useApp.getState().toggleFavorite(currentId)
-                }}
-              >
-                <Icon name={favorite ? 'heart-filled' : 'heart'} size={19} />
-              </button>
-              <VolumeBar />
-            </div>
-          </div>
         </section>
 
         <section className="nowplaying__lyrics">
           <LyricsPanel track={track ?? null} variant="full" />
         </section>
       </div>
+
+      {/* Full width on purpose: the seek bar is the one control worth the whole
+       * screen, and the artwork column would have kept it to 560 px. */}
+      <footer className="nowplaying__foot">
+        <SeekBar
+          position={position}
+          duration={duration}
+          className="seekbar--lg"
+          onSeek={(seconds) => usePlayer.getState().seek(seconds)}
+        />
+        <div className="nowplaying__times">
+          <span>{formatTime(position)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+
+        <div className="nowplaying__controls">
+          <TransportControls size="lg" />
+          <div className="nowplaying__extras">
+            <button
+              type="button"
+              className={`iconbtn${favorite ? ' iconbtn--active' : ''}`}
+              title={favorite ? 'Убрать из избранного (F)' : 'В избранное (F)'}
+              disabled={!track}
+              onClick={() => {
+                if (currentId) void useApp.getState().toggleFavorite(currentId)
+              }}
+            >
+              <Icon name={favorite ? 'heart-filled' : 'heart'} size={19} />
+            </button>
+            <VolumeBar />
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { makeId } from '@shared/defaults'
 import type { QueueItem, RepeatMode, Track } from '@shared/types'
 import { errorMessage } from '../lib/api'
-import { registerPlaybackReset, useApp } from './store'
+import { registerPlaybackReset, registerQueueForgetter, useApp } from './store'
 
 const TICK_MS = 66 // ~15 fps: plenty for karaoke line highlighting and a seek bar
 
@@ -538,6 +538,14 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 // this module (cycle), so it calls back into it instead.
 registerPlaybackReset(() => {
   usePlayer.getState().clearQueue()
+})
+
+// Deleting a track from the library has to take it out of the queue as well,
+// otherwise the player would keep offering a file that no longer exists.
+registerQueueForgetter((trackId) => {
+  for (const item of usePlayer.getState().queue.filter((entry) => entry.trackId === trackId)) {
+    usePlayer.getState().removeFromQueue(item.uid)
+  }
 })
 
 /** Subscribes to track changes so the app can react (history, lyrics, ...). */

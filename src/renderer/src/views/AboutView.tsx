@@ -58,7 +58,7 @@ export function AboutView(): JSX.Element {
         <div className="abouthero__text">
           <h1>Kolaars Music</h1>
           <p>
-            Версия {appInfo?.version ?? '1.2.0'} · бесплатно, с открытым исходным кодом, без регистрации и
+            Версия {appInfo?.version ?? '1.2.1'} · бесплатно, с открытым исходным кодом, без регистрации и
             отслеживания.
           </p>
           <div className="abouthero__badges">
