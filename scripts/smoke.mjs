@@ -938,6 +938,24 @@ async function main() {
         )
         if (!ok) failures.push(label)
       }
+      const audioState = () =>
+        cdp.evaluate(`(() => {
+          const list = window.__probeAudios ?? []
+          const element = list[list.length - 1]
+          if (!element) return null
+          const seekable = []
+          for (let i = 0; i < element.seekable.length; i++) {
+            seekable.push([+element.seekable.start(i).toFixed(1), +element.seekable.end(i).toFixed(1)])
+          }
+          return {
+            duration: Number.isFinite(element.duration) ? +element.duration.toFixed(2) : null,
+            currentTime: +element.currentTime.toFixed(2),
+            readyState: element.readyState,
+            error: element.error ? element.error.code : null,
+            seekable
+          }
+        })()`)
+
       const wavName = 'Kolaars Karaoke - Smoke.wav'
       const wavPath = path.join(fixtureDir, wavName)
       writeFileSync(wavPath, makeWav(12))
@@ -958,6 +976,22 @@ async function main() {
           updatedAt: Date.now()
         })})`
       )
+
+      /* The player owns a detached `new Audio()`, so hook the constructor
+       * before the reload: whether a `kmedia://` file can be seeked at all is
+       * only visible on the element itself. */
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `(() => {
+          window.__probeAudios = []
+          const Original = window.Audio
+          window.Audio = function (...args) {
+            const element = new Original(...args)
+            window.__probeAudios.push(element)
+            return element
+          }
+          window.Audio.prototype = Original.prototype
+        })()`
+      })
 
       await cdp.evaluate('location.reload()')
       await cdp.waitFor('the app shell after the reload', "!!document.querySelector('.navitem')", 25_000)
@@ -981,6 +1015,32 @@ async function main() {
           `document.querySelector('.playerbar__title')?.textContent?.trim() === 'Smoke'`,
           15_000
         )
+
+        /* A `kmedia://` file used to be served as one opaque blob, so the
+         * element reported it as non-seekable: the seek bar did nothing and
+         * every jump (a lyric line, a saved position) started the track over. */
+        await sleep(1_000)
+        const seekableState = await audioState()
+        report(
+          (seekableState?.seekable?.length ?? 0) > 0 &&
+            seekableState.seekable[0][1] >= (seekableState.duration ?? 0) - 0.5,
+          'the whole local file is seekable',
+          `seekable ${JSON.stringify(seekableState?.seekable)} of ${seekableState?.duration}s`
+        )
+        const askedFor = Math.max(0, (seekableState?.duration ?? 12) - 2.5)
+        await cdp.evaluate(
+          `(window.__probeAudios[window.__probeAudios.length - 1]).currentTime = ${askedFor}`
+        )
+        await sleep(400)
+        const jumped = await audioState()
+        report(
+          Math.abs((jumped?.currentTime ?? -99) - askedFor) <= 0.7,
+          'a seek inside the local file lands where it was asked to',
+          `currentTime ${jumped?.currentTime}, asked ${askedFor}`
+        )
+        await cdp.evaluate(`(window.__probeAudios[window.__probeAudios.length - 1]).currentTime = 0`)
+        await sleep(400)
+
         await cdp.evaluate(`(() => {
           const button = [...document.querySelectorAll('.playerbar button')]
             .find((item) => (item.getAttribute('title') ?? '').startsWith('Текст'))
@@ -1015,6 +1075,7 @@ async function main() {
           }
         })()`)
         if (!aimed) throw new Error('no visible lyric line to aim at')
+        const audioBeforePress = await audioState()
         await cdp.press(aimed.x, aimed.y)
         await sleep(500)
         const picked = await cdp.evaluate(`(() => {
@@ -1034,6 +1095,12 @@ async function main() {
           Math.abs(picked.active - aimed.index) <= 1,
           'pressing a lyric line seeks to that line',
           `aimed ${aimed.index}, active ${picked.active}`
+        )
+        const audioAfterPress = await audioState()
+        report(
+          Math.abs((audioAfterPress?.currentTime ?? -99) - SMOKE_LINES[aimed.index].time) <= 1.3,
+          'pressing a lyric line moves playback to that line',
+          `audio ${audioAfterPress?.currentTime}s (was ${audioBeforePress?.currentTime}s), line at ${SMOKE_LINES[aimed.index].time}s`
         )
         report(
           picked.inView,
@@ -1066,10 +1133,19 @@ async function main() {
         report(menu.length > 0, 'the lyrics menu opens under a real press', `${menu.length} items`)
 
         await pressMenu('Редактировать текст')
-        const workshop = await cdp.evaluate(`(() => {
-          const area = document.querySelector('.modal__body textarea')
-          return { open: !!document.querySelector('.modal'), lines: area?.value.split('\\n').length ?? 0 }
-        })()`)
+        /* Lyrics are loaded per track, so the editor can be opened before they
+         * arrive — a menu click right after a track change does exactly that.
+         * It has to fill itself in once they do: an empty draft used to be
+         * saved straight over the text the track already had. */
+        let workshop = { open: false, lines: 0 }
+        for (let attempt = 0; attempt < 24; attempt++) {
+          workshop = await cdp.evaluate(`(() => {
+            const area = document.querySelector('.modal__body textarea')
+            return { open: !!document.querySelector('.modal'), lines: area?.value.split('\\n').length ?? 0 }
+          })()`)
+          if (workshop.lines === SMOKE_LINES.length) break
+          await sleep(150)
+        }
         report(
           workshop.open && workshop.lines === SMOKE_LINES.length,
           'the editor opens with the saved text',

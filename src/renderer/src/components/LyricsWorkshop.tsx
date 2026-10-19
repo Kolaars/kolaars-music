@@ -78,26 +78,43 @@ export function LyricsWorkshop({
   }, [position])
 
   const source: Lyrics | null = saved ?? bundled
+  /** False the moment the author touches the draft, so a late lyric cannot win. */
+  const pristine = useRef(true)
 
-  /* (Re)initialise the local draft whenever the modal opens. */
-  useEffect(() => {
-    if (!tab) return
-    setActive(tab)
-    const base = source
+  const applySource = useCallback((base: Lyrics | null) => {
     const text = base?.plain ?? ''
     setPlain(text)
-
     if (base?.synced?.length) {
       setLines(base.synced.map((line) => ({ text: line.text, time: line.time })))
     } else {
       setLines(meaningfulLines(text).map((lineText) => ({ text: lineText, time: null })))
     }
+  }, [])
+
+  /* (Re)initialise the local draft whenever the modal opens. */
+  useEffect(() => {
+    if (!tab) return
+    setActive(tab)
+    pristine.current = true
+    applySource(source)
     setPointer(0)
     setQueryLoaded(false)
     setQuery(`${track.title} ${track.artist}`.trim())
     // Intentionally only re-runs when the modal is (re)opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, track.id])
+
+  /* The lyrics of a track are loaded per track, and this modal can be opened
+   * before they arrive — a menu click right after a track change does exactly
+   * that. The draft used to stay empty in that case, so saving it wiped the
+   * text the track already had. Fill it in as soon as a source shows up,
+   * unless the author started typing on an empty draft first. */
+  useEffect(() => {
+    if (!tab || !pristine.current) return
+    if (!saved && !bundled) return
+    applySource(saved ?? bundled)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, saved, bundled])
 
   /* Re-derive sync lines when the author edits the text tab. */
   useEffect(() => {
@@ -108,6 +125,7 @@ export function LyricsWorkshop({
 
   const mark = useCallback(
     (index: number) => {
+      pristine.current = false
       setLines((current) => {
         const next = [...current]
         if (!next[index]) return current
@@ -161,6 +179,7 @@ export function LyricsWorkshop({
   }
 
   const shiftAll = (delta: number): void => {
+    pristine.current = false
     setLines((current) =>
       current.map((line) => (line.time == null ? line : { ...line, time: Math.max(0, line.time + delta) }))
     )
@@ -176,6 +195,7 @@ export function LyricsWorkshop({
       useApp.getState().toast('Сначала введите текст', 'error')
       return
     }
+    pristine.current = false
     setLines(draft.map((line) => ({ text: line.text, time: line.time })))
     setPointer(0)
     useApp.getState().toast('Черновые метки расставлены — уточните их вручную', 'info')
@@ -240,7 +260,10 @@ export function LyricsWorkshop({
             value={plain}
             spellCheck={false}
             placeholder={'Первая строка\nВторая строка\n\nНовый куплет'}
-            onChange={(event) => setPlain(event.target.value)}
+            onChange={(event) => {
+              pristine.current = false
+              setPlain(event.target.value)
+            }}
           />
           <p className="workshop__meta">
             {meaningfulLines(plain).length} строк · {plain.length} символов
@@ -337,6 +360,7 @@ export function LyricsWorkshop({
                   value={line.time != null ? formatTimestamp(line.time) : ''}
                   placeholder="--:--.--"
                   onChange={(event) => {
+                    pristine.current = false
                     const parsed = parseTimestampInput(event.target.value)
                     setLines((current) => {
                       const next = [...current]
@@ -360,6 +384,7 @@ export function LyricsWorkshop({
                   title="Сбросить метку"
                   onClick={() =>
                     setLines((current) => {
+                      pristine.current = false
                       const next = [...current]
                       next[index] = { ...next[index], time: null }
                       return next

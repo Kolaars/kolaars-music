@@ -38,11 +38,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const paint = (color, text) => `\u001b[${color}m${text}\u001b[0m`
 
 /* ------------------------------------------------------------------ */
-/* Fixture: a 3 s WAV plus a sidecar .lrc, so the local path has real   */
-/* input and the tag reader has something to parse.                     */
+/* Fixture: a 45 s WAV plus a sidecar .lrc, so the local path has real  */
+/* input and the tag reader has something to parse. It is deliberately  */
+/* longer than the couple of seconds Chromium buffers up front — a seek */
+/* to the far end is what proves the protocol answers `Range`.          */
 /* ------------------------------------------------------------------ */
 
-function makeWav(seconds = 3, rate = 44100) {
+function makeWav(seconds = 45, rate = 44100) {
   const frames = seconds * rate
   const data = Buffer.alloc(frames * 2)
   for (let i = 0; i < frames; i++) {
@@ -230,6 +232,10 @@ const AUDIO_STATE = `(() => {
   const list = window.__kolaarsProbeAudios ?? []
   const a = list[list.length - 1]
   if (!a) return { audios: list.length, note: 'no Audio instance captured' }
+  const seekable = []
+  for (let i = 0; i < a.seekable.length; i++) {
+    seekable.push([+a.seekable.start(i).toFixed(1), +a.seekable.end(i).toFixed(1)])
+  }
   return {
     audios: list.length,
     src: a.currentSrc || a.src,
@@ -237,6 +243,7 @@ const AUDIO_STATE = `(() => {
     duration: Number.isFinite(a.duration) ? +a.duration.toFixed(2) : null,
     paused: a.paused,
     readyState: a.readyState,
+    seekable,
     error: a.error ? { code: a.error.code, message: a.error.message } : null
   }
 })()`
@@ -436,7 +443,7 @@ async function main() {
           failures.push(`local streamUrl is not kmedia:// (${track.streamUrl})`)
         }
         if (track.title !== 'Kolaars Tone') failures.push(`filename was not used as the title (${track.title})`)
-        if (!(track.duration >= 2 && track.duration <= 4)) {
+        if (!(track.duration >= 43 && track.duration <= 47)) {
           failures.push(`music-metadata did not report a duration (${track.duration})`)
         }
       }
@@ -467,6 +474,25 @@ async function main() {
         )
       }
       if (!(state.currentTime > 0)) failures.push(`kmedia:// playback never advanced (currentTime ${state.currentTime})`)
+
+      /* Seeking is the point of `kmedia://` answering `Range`: without it the
+       * element reports a non-seekable stream, the seek bar does nothing and a
+       * lyric line or a restored position throws the track back to the start. */
+      const whole = (state.seekable?.length ?? 0) > 0 && state.seekable[0][1] >= (state.duration ?? 0) - 0.5
+      if (!whole) {
+        failures.push(`the local file was not seekable (seekable ${JSON.stringify(state.seekable)} of ${state.duration}s)`)
+      } else {
+        const asked = Math.max(1, (state.duration ?? 45) - 5)
+        await cdp.evaluate(`(window.__kolaarsProbeAudios[window.__kolaarsProbeAudios.length - 1]).currentTime = ${asked}`)
+        await sleep(700)
+        const jumped = await cdp.evaluate(AUDIO_STATE)
+        process.stdout.write(`  ..  seek to ${asked}s: ${JSON.stringify(jumped)}\n`)
+        if (Math.abs((jumped.currentTime ?? -99) - asked) > 0.9) {
+          failures.push(`a seek to ${asked}s landed at ${jumped.currentTime}s`)
+        } else {
+          process.stdout.write(`${paint(32, '  ok  ')} the local file can be seeked anywhere\n`)
+        }
+      }
     } catch (error) {
       failures.push(`local import / kmedia://: ${error.message}`)
     }
@@ -498,12 +524,27 @@ async function main() {
         const audio = new Audio(row.streamUrl)
         const played = await audio.play().then(() => true).catch((error) => 'play() rejected: ' + error.message)
         await new Promise((resolve) => setTimeout(resolve, 2_500))
+        const seekable = []
+        for (let i = 0; i < audio.seekable.length; i++) {
+          seekable.push([+audio.seekable.start(i).toFixed(1), +audio.seekable.end(i).toFixed(1)])
+        }
+        const duration = Number.isFinite(audio.duration) ? +audio.duration.toFixed(2) : null
+        let landed = null
+        if (duration) {
+          const asked = Math.max(1, duration - 5)
+          audio.currentTime = asked
+          await new Promise((resolve) => setTimeout(resolve, 700))
+          landed = { asked, at: +audio.currentTime.toFixed(2) }
+        }
         return {
           streamUrl: row.streamUrl,
           artwork: String(row.artwork ?? '').slice(0, 48),
           played,
           readyState: audio.readyState,
           currentTime: +audio.currentTime.toFixed(2),
+          duration,
+          seekable,
+          landed,
           error: audio.error ? { code: audio.error.code, message: audio.error.message } : null
         }
       })()`)
@@ -519,6 +560,13 @@ async function main() {
         }
         if (!(after.currentTime > 0)) {
           failures.push(`local playback did not advance after a restart (currentTime ${after.currentTime})`)
+        }
+        const afterWhole = (after.seekable?.length ?? 0) > 0 && after.seekable[0][1] >= (after.duration ?? 0) - 0.5
+        if (!afterWhole) {
+          failures.push(`the local file was not seekable after a restart (seekable ${JSON.stringify(after.seekable)})`)
+        }
+        if (after.landed && Math.abs((after.landed.at ?? -99) - after.landed.asked) > 0.9) {
+          failures.push(`a seek to ${after.landed.asked}s landed at ${after.landed.at}s after a restart`)
         }
 
         /* The cover has to survive the restart too — that is the half of the

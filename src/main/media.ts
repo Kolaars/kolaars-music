@@ -7,11 +7,16 @@
  * paths that the main process has explicitly allowed.
  */
 
-import { app, net, protocol } from 'electron'
+import { app, protocol } from 'electron'
+import { createReadStream, promises as fs } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { Readable } from 'node:stream'
+import { contentTypeFor, parseByteRange } from './byteRange'
 
 export const MEDIA_SCHEME = 'kmedia'
+
+/** What `new Response()` accepts as a body, without naming the DOM/undici type. */
+type ResponseBody = ConstructorParameters<typeof Response>[0]
 
 /** Paths (normalised, lower-cased on Windows) that may be served. */
 const allowed = new Set<string>()
@@ -113,15 +118,47 @@ export function registerMediaProtocol(): void {
     const filePath = decodeMediaUrl(request.url)
     if (!filePath) return new Response('Bad request', { status: 400 })
     if (!isAllowed(filePath)) return new Response('Forbidden', { status: 403 })
+
+    let size: number
     try {
-      // `net.fetch` on a file URL transparently supports Range requests,
-      // which is what lets the player seek inside local tracks.
-      return await net.fetch(pathToFileURL(filePath).toString(), {
-        headers: request.headers,
-        method: request.method
-      })
-    } catch (err) {
-      return new Response(`Not found: ${(err as Error).message}`, { status: 404 })
+      const stat = await fs.stat(filePath)
+      if (!stat.isFile()) return new Response('Not found', { status: 404 })
+      size = stat.size
+    } catch {
+      return new Response('Not found', { status: 404 })
     }
+
+    /* Ranges are answered by hand. Handing the file to `net.fetch` looks
+     * simpler but Chromium's file loader ignores `Range` (and sends no
+     * `Accept-Ranges`), so the media element was told the stream was not
+     * seekable at all: the seek bar did nothing and jumping to a saved position
+     * or a clicked lyric line restarted the track from the beginning. */
+    const headers: Record<string, string> = {
+      'content-type': contentTypeFor(filePath),
+      'accept-ranges': 'bytes'
+    }
+    const range = parseByteRange(request.headers.get('range'), size)
+
+    if (range) {
+      const stream = createReadStream(filePath, { start: range.start, end: range.end })
+      return new Response(Readable.toWeb(stream) as unknown as ResponseBody, {
+        status: 206,
+        headers: {
+          ...headers,
+          'content-length': String(range.end - range.start + 1),
+          'content-range': `bytes ${range.start}-${range.end}/${size}`
+        }
+      })
+    }
+
+    if (request.method === 'HEAD') {
+      return new Response(null, { status: 200, headers: { ...headers, 'content-length': String(size) } })
+    }
+
+    const stream = createReadStream(filePath)
+    return new Response(Readable.toWeb(stream) as unknown as ResponseBody, {
+      status: 200,
+      headers: { ...headers, 'content-length': String(size) }
+    })
   })
 }

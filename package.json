@@ -1,6 +1,6 @@
 {
   "name": "kolaars-music",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Open-source desktop music player: a catalog of public-domain & openly licensed music, with synced lyrics.",
   "productName": "Kolaars Music",
   "author": {
@@ -39,10 +39,11 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "test": "npm run test:tracklist && npm run test:covers && npm run test:names",
+    "test": "npm run test:tracklist && npm run test:covers && npm run test:names && npm run test:range",
     "test:tracklist": "node scripts/test-tracklist.mjs",
     "test:covers": "node scripts/test-sidecar-cover.mjs",
     "test:names": "node scripts/test-file-names.mjs",
+    "test:range": "node scripts/test-byte-range.mjs",
     "smoke": "npm run build && node scripts/smoke.mjs",
     "smoke:packaged": "node scripts/smoke-packaged.mjs",
     "tools:seed": "node scripts/fetch-builder-tools.mjs",
