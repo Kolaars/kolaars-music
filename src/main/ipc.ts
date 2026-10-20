@@ -12,6 +12,7 @@ import path from 'node:path'
 import { CH, EV } from '@shared/ipc'
 import { makeId } from '@shared/defaults'
 import type {
+  ExternalProvider,
   Lyrics,
   LyricsCandidate,
   Playlist,
@@ -19,6 +20,8 @@ import type {
   SearchResultPage,
   Settings,
   SessionState,
+  SourceSearchQuery,
+  SourcesStatus,
   Track
 } from '@shared/types'
 import * as store from './db'
@@ -45,6 +48,14 @@ import {
   searchArchive
 } from './providers/archive'
 import { lrclibGet, lrclibSearch, wikisourceFetch, wikisourceSearch } from './providers/lyrics'
+import { fetchYouTubeTrack, searchYouTube } from './providers/youtube'
+import { fetchSoundCloudTrack, searchSoundCloud } from './providers/soundcloud'
+import {
+  clearCredential,
+  credentialsStatus,
+  getCredential,
+  setCredential
+} from './credentials'
 import {
   PACK_INFO,
   bundledLyricsById,
@@ -604,6 +615,67 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     return fetchArchiveItem(identifier, db.settings.preferLossless)
   })
 
+  /* ------------------- external sources (official) ---------------- */
+
+  handle(CH.sourcesStatus, async (): Promise<SourcesStatus> => readSourcesStatus())
+
+  handle(CH.sourcesSetCredential, async (_event, provider: ExternalProvider, value: string) => {
+    await setCredential(provider, value)
+    return readSourcesStatus()
+  })
+
+  handle(CH.sourcesClearCredential, async (_event, provider: ExternalProvider) => {
+    await clearCredential(provider)
+    return readSourcesStatus()
+  })
+
+  handle(
+    CH.sourcesSearch,
+    async (_event, query: SourceSearchQuery): Promise<SearchResultPage<Track>> => {
+      const db = await store.loadDb()
+      if (!db.settings.onlineProviders) throw new Error('Онлайн-источники отключены в настройках')
+
+      const provider = query?.provider
+      if (provider !== 'youtube' && provider !== 'soundcloud') throw new Error('Неизвестный источник')
+      if (!db.settings.providers[provider]) throw new Error('Этот источник выключен в настройках')
+
+      const key = await getCredential(provider)
+      if (!key) {
+        throw new Error(
+          provider === 'youtube'
+            ? 'Сначала добавьте ключ YouTube Data API на экране «Источники»'
+            : 'Сначала добавьте SoundCloud client_id на экране «Источники»'
+        )
+      }
+
+      const text = String(query.text ?? '')
+      if (!text.trim()) return { items: [], page: 1, pageSize: query.pageSize ?? 24, total: 0, hasMore: false }
+
+      const request: SourceSearchQuery = { ...query, text }
+      return provider === 'youtube'
+        ? searchYouTube(key, request)
+        : searchSoundCloud(key, request)
+    }
+  )
+
+  handle(CH.sourcesResolve, async (_event, trackId: string): Promise<Track | null> => {
+    if (typeof trackId !== 'string') return null
+    const db = await store.loadDb()
+    if (!db.settings.onlineProviders) return null
+
+    if (trackId.startsWith('yt:')) {
+      if (!db.settings.providers.youtube) return null
+      const key = await getCredential('youtube')
+      return key ? fetchYouTubeTrack(key, trackId.slice(3)) : null
+    }
+    if (trackId.startsWith('sc:')) {
+      if (!db.settings.providers.soundcloud) return null
+      const key = await getCredential('soundcloud')
+      return key ? fetchSoundCloudTrack(key, trackId.slice(3)) : null
+    }
+    return null
+  })
+
   /* ---------------------- track-list import --------------------- */
 
   handle(CH.listPickFile, async (): Promise<{ path: string; text: string } | null> => {
@@ -732,6 +804,21 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     void applyDownloadToLibrary(record)
     send(EV.downloadProgress, record)
   })
+}
+
+async function readSourcesStatus(): Promise<SourcesStatus> {
+  const db = await store.loadDb()
+  const credentials = await credentialsStatus()
+  return {
+    youtube: {
+      configured: credentials.youtube,
+      enabled: db.settings.providers.youtube
+    },
+    soundcloud: {
+      configured: credentials.soundcloud,
+      enabled: db.settings.providers.soundcloud
+    }
+  }
 }
 
 async function applyDownloadToLibrary(record: DownloadRecord): Promise<void> {

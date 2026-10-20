@@ -8,7 +8,7 @@
 
 import { create } from 'zustand'
 import { makeId } from '@shared/defaults'
-import type { QueueItem, RepeatMode, Track } from '@shared/types'
+import type { ExternalRef, QueueItem, RepeatMode, Track } from '@shared/types'
 import { errorMessage } from '../lib/api'
 import { registerPlaybackReset, registerQueueForgetter, useApp } from './store'
 
@@ -27,6 +27,13 @@ interface PlayerState {
   shuffle: boolean
   repeat: RepeatMode
   error: string | null
+  /**
+   * Set when the current track is played by an embedded official provider
+   * player instead of the `<audio>` element. `null` means local/archive audio.
+   */
+  external: ExternalRef | null
+  /** The embedded player has finished loading and can accept commands. */
+  externalReady: boolean
 
   /* actions */
   playTracks: (tracks: Track[], startIndex?: number) => void
@@ -52,6 +59,45 @@ interface PlayerState {
   clearQueue: () => void
   handleEnded: () => void
   dismissError: () => void
+  /** Called by the embedded player when it becomes ready. */
+  markExternalReady: (id: string) => void
+  /** Called by the embedded player with its own position/state. */
+  externalReport: (
+    id: string,
+    patch: { playing?: boolean; position?: number; duration?: number }
+  ) => void
+  /** The embedded player reached the end of the item. */
+  externalEnded: () => void
+}
+
+/* ------------------------------------------------------------------ */
+/* Embedded player bridge                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The embedded provider players are React components, while transport controls
+ * live in this store. This tiny interface is the whole bridge: the component
+ * registers itself while mounted, and transport actions are forwarded here.
+ */
+export interface ExternalController {
+  play: () => void
+  pause: () => void
+  seek: (seconds: number) => void
+  setVolume: (volume: number) => void
+}
+
+let externalController: ExternalController | null = null
+let pendingExternalAutoplay = false
+
+export function registerExternalController(controller: ExternalController | null): void {
+  externalController = controller
+}
+
+/** True exactly once after a track change that should start playing. */
+export function consumeExternalAutoplay(): boolean {
+  const value = pendingExternalAutoplay
+  pendingExternalAutoplay = false
+  return value
 }
 
 /* ------------------------------------------------------------------ */
@@ -91,6 +137,22 @@ function el(): HTMLAudioElement {
   element.addEventListener('pause', () => {
     usePlayer.setState({ playing: false })
     stopTicker()
+  })
+  /*
+   * The ticker paints the position at ~15 fps, which is smooth but depends on
+   * requestAnimationFrame. Chromium stops animation frames for an occluded or
+   * minimised window even when background throttling is disabled, so the
+   * displayed position (and the karaoke highlight) could freeze while audio
+   * kept playing. `timeupdate` is driven by the media element itself and keeps
+   * the store honest in that situation. The two writers are harmless together:
+   * both publish the same `currentTime`.
+   */
+  element.addEventListener('timeupdate', () => {
+    if (usePlayer.getState().external) return
+    const position = element.currentTime
+    if (Number.isFinite(position) && Math.abs(position - usePlayer.getState().position) > 0.02) {
+      usePlayer.setState({ position })
+    }
   })
   element.addEventListener('waiting', () => usePlayer.setState({ buffering: true }))
   element.addEventListener('canplay', () => usePlayer.setState({ buffering: false }))
@@ -176,6 +238,31 @@ function isBenignPlayError(error: unknown): boolean {
 /* Loading                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Hands the current item to the embedded provider player.
+ *
+ * The `<audio>` element is stopped and stripped of its source so a local file
+ * can never keep playing under a YouTube/SoundCloud track.
+ */
+function startExternalPlayback(track: Track, autoplay: boolean): void {
+  if (!track.external) return
+  const element = el()
+  element.pause()
+  element.removeAttribute('src')
+  element.load()
+  stopTicker()
+  pendingExternalAutoplay = autoplay
+  usePlayer.setState({
+    external: track.external,
+    externalReady: false,
+    playing: false,
+    buffering: false,
+    position: 0,
+    duration: track.duration ?? 0,
+    error: null
+  })
+}
+
 async function loadCurrent(autoplay: boolean): Promise<void> {
   const token = ++loadToken
   const state = usePlayer.getState()
@@ -185,10 +272,12 @@ async function loadCurrent(autoplay: boolean): Promise<void> {
   usePlayer.setState({ currentId: trackId, error: null, position: 0 })
 
   if (!trackId) {
+    externalController?.pause()
     const element = el()
     element.removeAttribute('src')
     element.load()
-    usePlayer.setState({ duration: 0, playing: false })
+    stopTicker()
+    usePlayer.setState({ duration: 0, playing: false, external: null, externalReady: false })
     return
   }
 
@@ -201,6 +290,19 @@ async function loadCurrent(autoplay: boolean): Promise<void> {
     return
   }
 
+  /*
+   * External tracks never reach the `<audio>` element: their provider's own
+   * player is mounted by `ExternalPlayer` and driven through the store. The
+   * audio element is silenced first so the two engines can never overlap.
+   */
+  if (track.external) {
+    startExternalPlayback(track, autoplay)
+    return
+  }
+
+  externalController?.pause()
+  usePlayer.setState({ external: null, externalReady: false })
+
   if (!track.streamUrl || track.duration == null) {
     usePlayer.setState({ buffering: true })
     const resolved = await app.ensureTrack(trackId)
@@ -209,6 +311,12 @@ async function loadCurrent(autoplay: boolean): Promise<void> {
   }
 
   if (token !== loadToken) return
+
+  // The resolver may have recognised an external id that was not known yet.
+  if (track.external) {
+    startExternalPlayback(track, autoplay)
+    return
+  }
 
   if (!track.streamUrl) {
     usePlayer.setState({
@@ -278,6 +386,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   shuffle: false,
   repeat: 'off',
   error: null,
+  external: null,
+  externalReady: false,
 
   playTracks: (tracks, startIndex = 0) => {
     if (tracks.length === 0) return
@@ -313,6 +423,11 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   toggle: () => (get().playing ? get().pause() : get().play()),
 
   play: () => {
+    if (get().external) {
+      if (externalController) externalController.play()
+      else pendingExternalAutoplay = true
+      return
+    }
     const element = el()
     if (!element.src) {
       const { queue, queueIndex } = get()
@@ -329,10 +444,23 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   },
 
   pause: () => {
+    if (get().external) {
+      pendingExternalAutoplay = false
+      externalController?.pause()
+      set({ playing: false })
+      return
+    }
     el().pause()
   },
 
   stop: () => {
+    if (get().external) {
+      pendingExternalAutoplay = false
+      externalController?.pause()
+      externalController?.seek(0)
+      set({ playing: false, position: 0 })
+      return
+    }
     const element = el()
     element.pause()
     element.currentTime = 0
@@ -347,6 +475,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     if (index >= queue.length) {
       if (repeat === 'all') index = 0
       else {
+        externalController?.pause()
         el().pause()
         set({ playing: false, position: get().duration })
         return
@@ -371,6 +500,13 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   },
 
   seek: (seconds) => {
+    if (get().external) {
+      const duration = get().duration
+      const target = Math.min(Math.max(0, seconds), duration || seconds)
+      externalController?.seek(target)
+      set({ position: target })
+      return
+    }
     const element = el()
     const duration = Number.isFinite(element.duration) ? element.duration : get().duration
     const target = Math.min(Math.max(0, seconds), duration || seconds)
@@ -386,19 +522,22 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 
   setVolume: (volume) => {
     const clamped = Math.min(1, Math.max(0, volume))
-    applyVolume(clamped, get().muted)
+    if (get().external) externalController?.setVolume(clamped)
+    else applyVolume(clamped, clamped === 0)
     set({ volume: clamped, muted: clamped === 0 ? true : false })
   },
 
   adjustVolume: (delta) => {
     const next = Math.min(1, Math.max(0, get().volume + delta))
-    applyVolume(next, next === 0)
+    if (get().external) externalController?.setVolume(next)
+    else applyVolume(next, next === 0)
     set({ volume: next, muted: next === 0 })
   },
 
   toggleMute: () => {
     const muted = !get().muted
-    applyVolume(get().volume, muted)
+    if (get().external) externalController?.setVolume(muted ? 0 : get().volume)
+    else applyVolume(get().volume, muted)
     set({ muted })
   },
 
@@ -458,7 +597,17 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const next = queue.filter((item) => item.uid !== uid)
 
     if (next.length === 0) {
-      set({ queue: [], queueIndex: -1, currentId: null, playing: false, position: 0, duration: 0 })
+      externalController?.pause()
+      set({
+        queue: [],
+        queueIndex: -1,
+        currentId: null,
+        playing: false,
+        position: 0,
+        duration: 0,
+        external: null,
+        externalReady: false
+      })
       const element = el()
       element.removeAttribute('src')
       element.load()
@@ -473,8 +622,9 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     if (index === queueIndex) {
       const target = Math.min(queueIndex, next.length - 1)
       set({ queue: next, queueIndex: target })
-      if (get().playing) void loadCurrent(true)
-      else usePlayer.setState({ currentId: next[target]?.trackId ?? null })
+      // Always go through the loader: the replacement may be an external track
+      // whose official player has to replace the one that was just removed.
+      void loadCurrent(get().playing)
       return
     }
     set({ queue: next })
@@ -508,16 +658,32 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 
   clearQueue: () => {
     unshuffled = null
+    pendingExternalAutoplay = false
+    externalController?.pause()
     get().stop()
-    set({ queue: [], queueIndex: -1, currentId: null, duration: 0, error: null })
+    set({
+      queue: [],
+      queueIndex: -1,
+      currentId: null,
+      duration: 0,
+      error: null,
+      external: null,
+      externalReady: false
+    })
     const element = el()
     element.removeAttribute('src')
     element.load()
   },
 
   handleEnded: () => {
-    const { repeat } = get()
+    const { repeat, external } = get()
     if (repeat === 'one') {
+      if (external) {
+        externalController?.seek(0)
+        externalController?.play()
+        set({ position: 0, playing: true })
+        return
+      }
       get().seek(0)
       void el()
         .play()
@@ -527,7 +693,32 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     get().next()
   },
 
-  dismissError: () => set({ error: null })
+  dismissError: () => set({ error: null }),
+
+  markExternalReady: (id) => {
+    const current = get().external
+    if (!current || current.id !== id) return
+    set({ externalReady: true })
+  },
+
+  externalReport: (id, patch) => {
+    const current = get().external
+    if (!current || current.id !== id) return
+    set((state) => ({
+      playing: patch.playing ?? state.playing,
+      position: patch.position ?? state.position,
+      duration:
+        patch.duration != null && Number.isFinite(patch.duration) && patch.duration > 0
+          ? patch.duration
+          : state.duration,
+      buffering: false
+    }))
+  },
+
+  externalEnded: () => {
+    if (!get().external) return
+    get().handleEnded()
+  }
 }))
 
 /* ------------------------------------------------------------------ */
@@ -576,7 +767,9 @@ export function restoreSession(session: {
     queue: session.queue,
     queueIndex: session.queueIndex,
     currentId: session.trackId,
-    position: session.position ?? 0
+    position: session.position ?? 0,
+    external: null,
+    externalReady: false
   })
 
   if (session.queue.length === 0 || session.queueIndex < 0) return
@@ -586,9 +779,30 @@ export function restoreSession(session: {
     const trackId = session.queue[session.queueIndex]?.trackId
     if (!trackId) return
     const track = await useApp.getState().ensureTrack(trackId)
-    if (!track?.streamUrl) return
+    if (!track) return
+
+    // Resolving metadata is asynchronous. The window is interactive while it
+    // happens, so the listener may already have started another track. Never
+    // replace that track's audio with the restored one.
+    const current = usePlayer.getState()
+    if (current.currentId !== trackId || current.queue[current.queueIndex]?.trackId !== trackId) {
+      return
+    }
+
+    if (track.external) {
+      pendingExternalAutoplay = false
+      usePlayer.setState({
+        external: track.external,
+        externalReady: false,
+        duration: track.duration ?? 0
+      })
+      return
+    }
+
+    if (!track.streamUrl) return
     element.src = track.streamUrl
     const restore = (): void => {
+      if (usePlayer.getState().currentId !== trackId) return
       try {
         element.currentTime = session.position ?? 0
       } catch {

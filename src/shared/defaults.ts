@@ -54,7 +54,9 @@ export const DEFAULT_SETTINGS: Settings = {
   providers: {
     archive: true,
     lrclib: true,
-    wikisource: true
+    wikisource: true,
+    youtube: true,
+    soundcloud: true
   },
   normalizeLoudness: false,
   downloadDir: '',

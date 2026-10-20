@@ -120,6 +120,7 @@ export function buildAppMenu(getWindow: () => BrowserWindow | null): void {
         { label: 'Плейлисты', accelerator: 'CmdOrCtrl+3', click: navigate('playlists') },
         { label: 'Избранное', accelerator: 'CmdOrCtrl+4', click: navigate('favorites') },
         { label: 'Загрузки', accelerator: 'CmdOrCtrl+5', click: navigate('downloads') },
+        { label: 'Источники', accelerator: 'CmdOrCtrl+6', click: navigate('sources') },
         { type: 'separator' },
         { label: 'Настройки', accelerator: 'CmdOrCtrl+,', click: navigate('settings') }
       ]

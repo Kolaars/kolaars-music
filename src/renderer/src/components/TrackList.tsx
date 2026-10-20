@@ -108,7 +108,7 @@ function TrackRow({
   const playing = usePlayer((state) => (state.currentId === track.id ? state.playing : false))
   const favorite = useApp((state) => state.favorites.has(track.id))
   const hasLyrics = useApp((state) => state.lyricsIds.has(track.id))
-  const unavailable = !track.streamUrl && !track.identifier
+  const unavailable = !track.streamUrl && !track.identifier && !track.external
 
   return (
     <div
@@ -149,6 +149,12 @@ function TrackRow({
           {showAlbum && track.album ? ` · ${track.album}` : ''}
         </span>
         <span className="trackrow__badges">
+          {track.external ? (
+            <span className="badge" title="Воспроизводится официальным плеером сервиса">
+              <Icon name="external" size={11} />
+              {track.external.provider === 'youtube' ? 'YouTube' : 'SoundCloud'}
+            </span>
+          ) : null}
           {track.offline ? (
             <span className="badge" title="Доступно офлайн">
               <Icon name="offline" size={11} />

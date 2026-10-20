@@ -23,6 +23,8 @@ const LINKS = [
   { label: 'Musopen', url: 'https://musopen.org' },
   { label: 'LRCLIB', url: 'https://lrclib.net' },
   { label: 'Wikisource', url: 'https://en.wikisource.org' },
+  { label: 'YouTube Data API', url: 'https://developers.google.com/youtube/v3' },
+  { label: 'SoundCloud Developers', url: 'https://developers.soundcloud.com' },
   { label: 'Исходный код на GitHub', url: 'https://github.com/Kolaars/kolaars-music' }
 ]
 
@@ -145,13 +147,19 @@ export function AboutView(): JSX.Element {
           библиотека, плейлисты, тексты и настройки хранятся у вас на диске: по одному файлу{' '}
           <code>kolaars.json</code> на профиль. Профили — это просто отдельные библиотеки на одном
           компьютере; входа, пароля и синхронизации нет. Сеть используется только для обращения к открытым
-          API Internet Archive, LRCLIB и Wikisource, и только когда это нужно для показа или
-          воспроизведения записи.
+          API Internet Archive, LRCLIB и Wikisource, а также — если вы сами подключили «Источники» — к
+          официальным API YouTube и SoundCloud. Ключи этих API шифруются средствами ОС и не покидают
+          компьютер.
         </p>
         <p className="prose prose--muted">
           Импорт списка треков сопоставляет названия и не обращается к закрытым сервисам (Яндекс.Музыка,
           Spotify, Genius). Для музыки, защищённой авторским правом, свободного источника звука не
           существует — такая строка сохраняется как название и текст без аудио.
+        </p>
+        <p className="prose prose--muted">
+          В «Источниках» звук играет официальный встроенный плеер сервиса. Приложение не извлекает
+          аудиопоток, не обходит DRM и не скачивает защищённые треки; реклама и ограничения сервиса
+          действуют как обычно.
         </p>
         <p className="prose prose--muted">
           Программа предоставляется «как есть». Ответственность за соблюдение условий лицензий на отдельные

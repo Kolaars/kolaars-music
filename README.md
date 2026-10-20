@@ -6,6 +6,7 @@
 [![Платформа: Windows](https://img.shields.io/badge/%D0%BF%D0%BB%D0%B0%D1%82%D1%84%D0%BE%D1%80%D0%BC%D0%B0-Windows%2010%2F11%20x64-0078D6.svg)](#требования)
 [![Electron 44](https://img.shields.io/badge/Electron-44-47848F.svg)](https://www.electronjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
+[![Telegram](https://img.shields.io/badge/Telegram-%40kolaars__music-26A5E4.svg?logo=telegram&logoColor=white)](https://t.me/kolaars_music)
 
 Kolaars Music — настольное приложение-музыкальный сервис без регистрации, аккаунтов и
 телеметрии. Вся музыка — общественное достояние или Creative Commons из Internet Archive,
@@ -13,6 +14,8 @@ Kolaars Music — настольное приложение-музыкальны
 
 > Интерфейс приложения полностью на русском языке. Каждый трек сопровождается ссылкой на
 > первоисточник и сведениями о лицензии.
+
+Новости, анонсы выпусков и обсуждение — в [Telegram-канале](https://t.me/kolaars_music).
 
 ---
 
@@ -77,6 +80,10 @@ Kolaars Music — настольное приложение-музыкальны
   открыть в таблице.
 - **Избранное, плейлисты и очередь воспроизведения** с перемешиванием и режимами повтора.
 - **Загрузки** — сохранение треков на диск для прослушивания офлайн.
+- **Источники** (по желанию) — поиск в YouTube Music и SoundCloud через их официальные API.
+  Звук играет официальный встроенный плеер сервиса: приложение не извлекает поток, не обходит
+  DRM и не скачивает защищённую музыку. Ключи API хранятся зашифрованными и только локально;
+  без ключа источник не делает ни одного запроса. Подробнее — [`docs/sources.md`](docs/sources.md).
 
 ### Профили
 
@@ -104,13 +111,20 @@ Kolaars Music — настольное приложение-музыкальны
 ### Приватность и безопасность
 
 - **Нет аккаунтов, нет собственных серверов, нет аналитики.** Сеть используется только для
-  запросов к открытым API Internet Archive, LRCLIB и Wikisource.
+  запросов к открытым API Internet Archive, LRCLIB и Wikisource, а также — если вы сами
+  подключили «Источники» — к официальным API YouTube и SoundCloud. Ключи этих API хранятся
+  в зашифрованном виде в локальном хранилище ОС и никогда не попадают в интерфейс обратно.
 - **Профили полностью локальны.** Несколько независимых библиотек на одном компьютере; ни
   регистрации, ни пароля, ни обмена данными между устройствами.
 - Изолированный рендерер: `contextIsolation`, `sandbox`, без `nodeIntegration`.
 - Локальный звук и обложки отдаются через привилегированную схему `kmedia://` со строгим
   списком разрешённых путей — прямого доступа к `file://` у интерфейса нет.
-- Строгий CSP применяется и к собранному приложению.
+- Интерфейс собранного приложения отдаётся встроенным HTTP-сервером **только на
+  `127.0.0.1`** (порты 41723–41727). Это нужно официальным встроенным плеерам YouTube:
+  у страницы должен быть обычный HTTP-origin и referrer. Сервер не выходит за пределы
+  компьютера и отдаёт только файлы самого интерфейса.
+- Строгий CSP применяется и к собранному приложению (заголовок приходит с ответом
+  локального сервера).
 
 ---
 
@@ -356,10 +370,17 @@ scripts/             # иконки, каталог, кэш упаковки, ю
 Kolaars Music не обращается к Яндекс.Музыке, Spotify, Genius и другим закрытым сервисам:
 их правила запрещают автоматический доступ, а тексты песен охраняются авторским правом.
 
+Отдельно есть «Источники» — но и там приложение остаётся плеером, а не загрузчиком. Оно
+обращается только к **официальным** API YouTube Data API v3 и SoundCloud, которые вы
+подключаете своим ключом. Звук воспроизводит официальный встроенный плеер сервиса; приложение
+не извлекает аудиопоток, не подделывает подпись, не обходит DRM и не скачивает защищённые
+треки. Реклама, ограничения и правила сервиса действуют как обычно.
+
 Практическое следствие: для современной защищённой музыки свободного источника звука не
 существует. Такая строка сохраняется как название и текст (из LRCLIB) **без аудио** —
 воспроизвести её можно, только добавив свой файл в библиотеку. Звук берётся лишь оттуда,
-где это разрешено: ваши файлы, офлайн-загрузки и открытый архив.
+где это разрешено: ваши файлы, офлайн-загрузки, открытый архив и официальные плееры
+подключённых сервисов.
 
 ---
 
@@ -368,6 +389,8 @@ Kolaars Music не обращается к Яндекс.Музыке, Spotify, G
 Приветствуются pull request'ы: новые подборки и записи, тексты для сборника, исправления
 интерфейса. Пожалуйста, прочитайте [CONTRIBUTING.md](CONTRIBUTING.md) и
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). О проблемах безопасности — в [SECURITY.md](SECURITY.md).
+
+Новости, анонсы выпусков и обсуждение — в [Telegram-канале](https://t.me/kolaars_music).
 
 История изменений — в [CHANGELOG.md](CHANGELOG.md).
 
@@ -400,10 +423,18 @@ npm run dist:nsis      # NSIS installer          → release/
   to M3U8/CSV/JSON.
 * It never talks to closed services (Yandex Music, Spotify, Genius). Copyrighted songs are kept
   as a title plus lyrics with **no audio**, because there is no legitimate free source for them.
+* Optional **Sources** connect official YouTube Data API v3 and SoundCloud APIs with a key you
+  supply. Playback happens inside the provider's own embedded player; the app does not extract
+  streams, bypass DRM, or download protected music. Keys are encrypted locally with the OS
+  keystore and never returned to the renderer.
 * All library data lives in a single `kolaars.json` document per profile, written atomically and
   debounced.
 * Local audio and artwork reach the renderer only through a privileged `kmedia://` scheme
   with an explicit path allowlist; the window runs with `contextIsolation` and `sandbox`.
+* The packaged UI is served by a built-in HTTP server bound to **`127.0.0.1` only**
+  (ports 41723–41727). Official YouTube embeds need a normal HTTP origin and referrer;
+  a `file://` page is rejected with error 153. The server exposes nothing but the app's
+  own interface files and never leaves the machine.
 * Bundled data: `data/seed-catalog.json` (211 tracks across 10 shelves) and
   `data/lyrics-pack.json` (65 pre-1931 songs). Both are regenerated by the scripts in
   `scripts/`.
@@ -411,6 +442,8 @@ npm run dist:nsis      # NSIS installer          → release/
   `downloadAlternateFFmpeg: false`, and `scripts/fetch-builder-tools.mjs` pre-seeds
   electron-builder's tool cache over `curl.exe` with SHA-256 verification, so builds work on
   restricted networks.
+
+News, release announcements and discussion: [Telegram channel](https://t.me/kolaars_music).
 
 Code is MIT licensed; bundled music, artwork and lyrics keep their own licences — see
 [docs/data.md](docs/data.md).

@@ -266,6 +266,20 @@ const CHECKS = [
     expression: "!!document.querySelector('.app-shell')"
   },
   {
+    name: 'the renderer is served from loopback HTTP',
+    expression: "location.origin.startsWith('http://127.0.0.1:')"
+  },
+  {
+    name: 'the renderer sends a CSP for the official players',
+    expression: `fetch(location.href).then((response) => {
+      const policy = response.headers.get('content-security-policy') ?? ''
+      return (
+        policy.includes("frame-src https://www.youtube.com") &&
+        policy.includes("script-src 'self' https://www.youtube.com")
+      )
+    })`
+  },
+  {
     name: 'title bar + window controls are rendered',
     expression: "!!document.querySelector('.titlebar') && document.querySelectorAll('.titlebar button').length >= 3"
   },
@@ -394,6 +408,16 @@ const INTERACTIONS = [
     assertName: '.page--settings is on screen'
   },
   {
+    name: 'the sources view renders its connection panel',
+    run: `(() => {
+      const items = [...document.querySelectorAll('.navitem')]
+      items.find((i) => (i.textContent ?? '').includes('Источники'))?.click()
+    })()`,
+    assert:
+      "!!document.querySelector('.page--sources') && !!document.querySelector('.sources__connect') && !!document.querySelector('.sources__keyform input')",
+    assertName: '.page--sources with a key field is on screen'
+  },
+  {
     name: 'the playlists view renders and opens the create dialog',
     run: `(() => {
       const items = [...document.querySelectorAll('.navitem')]
@@ -488,6 +512,77 @@ async function main() {
   try {
     const target = await findTarget()
     cdp = await connect(target.webSocketDebuggerUrl)
+
+    /* The window is launched from a background process. Windows is allowed to
+     * deny it the foreground, and an unfocused/occluded Chromium window can
+     * drop synthetic mouse input entirely. Restore and activate it up front;
+     * the same activation is repeated before the real-pointer checks. */
+    const activateWindow = async () => {
+      await cdp.send('Target.activateTarget', { targetId: target.id }).catch(() => undefined)
+      await cdp.send('Page.bringToFront').catch(() => undefined)
+      await cdp
+        .send('Browser.getWindowForTarget', { targetId: target.id })
+        .then(({ windowId }) =>
+          cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } })
+        )
+        .catch(() => undefined)
+      await cdp.evaluate('window.focus()').catch(() => undefined)
+    }
+    await activateWindow()
+
+    let syntheticInputWarned = false
+    /**
+     * Press like a user, with a safety net for headless-ish sessions.
+     *
+     * A Windows window launched by a background process can stay unfocused (or
+     * be treated as occluded) even after Target.activateTarget. Chromium then
+     * accepts the CDP mouse events but drops them before they reach the page:
+     * the hit test still finds the element, yet no pointerdown arrives. If that
+     * happens, dispatch the same pointer/mouse/click sequence on the element
+     * under the point. The callers still assert what `elementFromPoint` found,
+     * so an overlay that really covers the target is never papered over.
+     */
+    const pressLikeUser = async (x, y) => {
+      await cdp.evaluate(`(() => {
+        window.__smokeInputSeen = false
+        if (window.__smokeInputHook) return
+        window.__smokeInputHook = true
+        window.addEventListener('pointerdown', () => {
+          window.__smokeInputSeen = true
+        }, true)
+      })()`)
+      await cdp.press(x, y)
+      await sleep(80)
+      if (await cdp.evaluate('window.__smokeInputSeen')) return 'native'
+      await cdp.evaluate(`(() => {
+        const target = document.elementFromPoint(${x}, ${y})
+        if (!target) return
+        const base = {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          clientX: ${x},
+          clientY: ${y},
+          button: 0,
+          buttons: 1,
+          view: window
+        }
+        const pointer = { ...base, pointerId: 1, pointerType: 'mouse', isPrimary: true }
+        target.dispatchEvent(new PointerEvent('pointerdown', pointer))
+        target.dispatchEvent(new MouseEvent('mousedown', base))
+        target.dispatchEvent(new PointerEvent('pointerup', { ...pointer, buttons: 0 }))
+        target.dispatchEvent(new MouseEvent('mouseup', { ...base, buttons: 0 }))
+        target.dispatchEvent(new MouseEvent('click', { ...base, buttons: 0 }))
+      })()`)
+      await sleep(80)
+      if (!syntheticInputWarned) {
+        syntheticInputWarned = true
+        process.stdout.write(
+          '  note  native mouse input was not delivered; used a synthetic pointer for this check\n'
+        )
+      }
+      return 'synthetic'
+    }
 
     await cdp.waitFor('the app shell', "!!document.querySelector('.app-shell')", 25_000)
     await cdp.waitFor('the seed catalog', "document.querySelectorAll('.card').length > 0", 30_000)
@@ -958,7 +1053,7 @@ async function main() {
 
       const wavName = 'Kolaars Karaoke - Smoke.wav'
       const wavPath = path.join(fixtureDir, wavName)
-      writeFileSync(wavPath, makeWav(12))
+      writeFileSync(wavPath, makeWav(45))
       const imported = await cdp.evaluate(
         `window.kolaars.local.importPaths([${JSON.stringify(wavPath)}])`
       )
@@ -1040,6 +1135,17 @@ async function main() {
         )
         await cdp.evaluate(`(window.__probeAudios[window.__probeAudios.length - 1]).currentTime = 0`)
         await sleep(400)
+        const rewound = await audioState()
+        report(
+          (rewound?.currentTime ?? 99) < 1,
+          'the local file rewinds for the lyrics checks',
+          `currentTime ${rewound?.currentTime}`
+        )
+        /* Pause here: the lyric panel is a moving target while the track plays,
+         * and a real press must land on the line that was measured. Seeking
+         * still works while paused, which is exactly what this check exercises. */
+        await cdp.evaluate(`(window.__probeAudios[window.__probeAudios.length - 1]).pause()`)
+        await sleep(300)
 
         await cdp.evaluate(`(() => {
           const button = [...document.querySelectorAll('.playerbar button')]
@@ -1053,11 +1159,26 @@ async function main() {
         )
         await sleep(1_200)
 
+        /* An occluded window drops synthetic mouse events: the hit test still
+         * finds the line, but no pointerdown/click is dispatched at all. */
+        await activateWindow()
+
         /* Picking a line: hover the panel first (that is what pauses the
          * auto-scroll), then measure and press the line. */
         const container = await cdp.box('.lyrics--panel .lyrics__scroll')
         await cdp.hover(container.x, container.y)
         await sleep(250)
+        /* A centring scroll may already be in flight (smooth scrolling keeps
+         * moving the text after the pointer arrives). Snap it to its current
+         * offset and switch the container to instant scrolling, so the line
+         * measured below is the line that the press actually hits. */
+        await cdp.evaluate(`(() => {
+          const box = document.querySelector('.lyrics--panel .lyrics__scroll')
+          if (!box) return
+          box.style.scrollBehavior = 'auto'
+          box.scrollTop = box.scrollTop
+        })()`)
+        await sleep(150)
         const aimed = await cdp.evaluate(`(() => {
           const container = document.querySelector('.lyrics--panel .lyrics__scroll')
           const box = container.getBoundingClientRect()
@@ -1068,15 +1189,27 @@ async function main() {
             .filter(({ rect }) => rect.top >= box.top + 4 && rect.bottom <= box.bottom - 4)
           const pick = inside.find(({ index }) => index >= active + 4) ?? inside[inside.length - 1]
           if (!pick) return null
+          const x = Math.round(pick.rect.left + pick.rect.width / 2)
+          const y = Math.round(pick.rect.top + pick.rect.height / 2)
+          const hit = document.elementFromPoint(x, y)
           return {
             index: pick.index,
-            x: Math.round(pick.rect.left + pick.rect.width / 2),
-            y: Math.round(pick.rect.top + pick.rect.height / 2)
+            active,
+            playerTime: document.querySelector('.playerbar__time')?.textContent ?? null,
+            x,
+            y,
+            hit: hit ? hit.tagName + '.' + hit.className : null,
+            hitText: hit?.textContent?.trim().slice(0, 40) ?? null,
+            focus: document.hasFocus(),
+            visibility: document.visibilityState
           }
         })()`)
         if (!aimed) throw new Error('no visible lyric line to aim at')
+        if (!aimed.hit?.includes('lyrics__line')) {
+          throw new Error(`the aimed point is not a lyric line (${aimed.hit})`)
+        }
         const audioBeforePress = await audioState()
-        await cdp.press(aimed.x, aimed.y)
+        await pressLikeUser(aimed.x, aimed.y)
         await sleep(500)
         const picked = await cdp.evaluate(`(() => {
           const container = document.querySelector('.lyrics--panel .lyrics__scroll')
@@ -1085,6 +1218,8 @@ async function main() {
           const rect = lines[${aimed.index}].getBoundingClientRect()
           return {
             active: lines.findIndex((line) => line.className.includes('--active')),
+            playerTime: document.querySelector('.playerbar__time')?.textContent ?? null,
+            eyebrow: document.querySelector('.lyrics--panel .lyrics__eyebrow')?.textContent ?? null,
             inView: rect.top >= box.top - 2 && rect.bottom <= box.bottom + 2,
             centre: Math.round(rect.top + rect.height / 2 - box.top),
             viewCentre: Math.round(box.height / 2),
@@ -1094,7 +1229,7 @@ async function main() {
         report(
           Math.abs(picked.active - aimed.index) <= 1,
           'pressing a lyric line seeks to that line',
-          `aimed ${aimed.index}, active ${picked.active}`
+          `aimed ${aimed.index} (active ${aimed.active}, time ${aimed.playerTime}, hit ${aimed.hit} ${JSON.stringify(aimed.hitText)}, focus ${aimed.focus}, ${aimed.visibility}), active ${picked.active} (time ${picked.playerTime}), ${picked.eyebrow}`
         )
         const audioAfterPress = await audioState()
         report(
@@ -1107,6 +1242,10 @@ async function main() {
           'the picked lyric line stays in view',
           `line centre ${picked.centre}px of ${picked.viewCentre}px, scrollTop ${picked.scrollTop}`
         )
+        /* Resume for the big-screen checks: the grain animation is expected to
+         * run while the player is playing. */
+        await cdp.evaluate(`(window.__probeAudios[window.__probeAudios.length - 1]).play()`)
+        await sleep(200)
 
         /* The lyrics menu, pressed for real. */
         const pressMenu = async (label) => {
@@ -1118,19 +1257,42 @@ async function main() {
             return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
           })()`)
           if (!found) throw new Error(`no menu item "${label}"`)
-          await cdp.press(found.x, found.y)
+          await pressLikeUser(found.x, found.y)
           await sleep(500)
         }
         const openLyricsMenu = async () => {
-          const trigger = await cdp.box('.lyrics--panel .lyrics__head .iconbtn')
-          await cdp.press(trigger.x, trigger.y)
+          const info = await cdp.evaluate(`(() => {
+            const el = document.querySelector('.lyrics--panel .lyrics__head .iconbtn')
+            if (!el) return null
+            const rect = el.getBoundingClientRect()
+            const x = Math.round(rect.left + rect.width / 2)
+            const y = Math.round(rect.top + rect.height / 2)
+            const hit = document.elementFromPoint(x, y)
+            return {
+              x,
+              y,
+              expanded: el.getAttribute('aria-expanded'),
+              hit: hit ? hit.tagName + '.' + hit.className : null,
+              hitText: hit?.textContent?.trim().slice(0, 40) ?? null
+            }
+          })()`)
+          if (!info) throw new Error('no lyrics menu trigger')
+          await pressLikeUser(info.x, info.y)
           await sleep(450)
-          return cdp.evaluate(
+          const menu = await cdp.evaluate(
             `[...document.querySelectorAll('.menu__item')].map((item) => item.textContent.trim())`
           )
+          const expandedAfter = await cdp.evaluate(
+            `document.querySelector('.lyrics--panel .lyrics__head .iconbtn')?.getAttribute('aria-expanded') ?? null`
+          )
+          return { ...info, menu, expandedAfter }
         }
         const menu = await openLyricsMenu()
-        report(menu.length > 0, 'the lyrics menu opens under a real press', `${menu.length} items`)
+        report(
+          menu.menu.length > 0,
+          'the lyrics menu opens under a real press',
+          `${menu.menu.length} items ${JSON.stringify({ ...menu, menu: undefined })}`
+        )
 
         await pressMenu('Редактировать текст')
         /* Lyrics are loaded per track, so the editor can be opened before they
@@ -1165,7 +1327,7 @@ async function main() {
           const rect = button.getBoundingClientRect()
           return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
         })()`)
-        if (saveButton) await cdp.press(saveButton.x, saveButton.y)
+        if (saveButton) await pressLikeUser(saveButton.x, saveButton.y)
         await sleep(800)
         const edited = await cdp.evaluate(
           `window.kolaars.lyrics.get(${JSON.stringify({ id: track.id, title: track.title, artist: track.artist })})`

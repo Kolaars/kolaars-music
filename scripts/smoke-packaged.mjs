@@ -250,6 +250,14 @@ const AUDIO_STATE = `(() => {
 
 const CHECKS = [
   ['renderer loads from the asar archive', "!!document.querySelector('.app-shell')"],
+  [
+    'renderer is served over loopback HTTP',
+    "location.protocol === 'http:' && location.hostname === '127.0.0.1'"
+  ],
+  [
+    'renderer sends the player CSP',
+    "fetch(location.href).then((response) => (response.headers.get('content-security-policy') ?? '').includes('https://www.youtube.com')).catch(() => false)"
+  ],
   ['sidebar navigation has entries', "document.querySelectorAll('.navitem').length >= 6"],
   ['discover header renders in Russian', "!!document.querySelector('.hero__title')?.textContent?.includes('Музыка')"],
   ['seed shelves are on screen', "document.querySelectorAll('.shelf').length >= 5"],

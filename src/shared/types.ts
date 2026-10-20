@@ -23,6 +23,12 @@ export type TrackSource =
    * audio of its own.
    */
   | 'list'
+  /**
+   * Played through an external service's own official player (YouTube IFrame
+   * Player, SoundCloud Widget). The app never receives the audio stream: it
+   * only embeds the provider's player and drives it through its public API.
+   */
+  | 'external'
 
 /** A playable item. */
 export interface Track {
@@ -44,6 +50,11 @@ export interface Track {
    * used to lazily resolve the real stream URL and full metadata.
    */
   identifier?: string | null
+  /**
+   * Set when the track is played by an embedded, official provider player
+   * instead of the app's own `<audio>` element.
+   */
+  external?: ExternalRef | null
   /** Absolute path on disk for locally imported tracks. */
   filePath?: string | null
   /** Human readable license, e.g. "Public Domain", "CC BY 4.0". */
@@ -62,6 +73,36 @@ export interface TrackListItem extends Track {
   favorite: boolean
   /** True when lyrics exist locally for this track. */
   hasLyrics: boolean
+}
+
+/** Services whose official embeddable player the app can drive. */
+export type ExternalProvider = 'youtube' | 'soundcloud'
+
+/**
+ * Everything needed to load one item in the provider's own player. The audio
+ * itself never passes through the app.
+ */
+export interface ExternalRef {
+  provider: ExternalProvider
+  /** Provider-side id: a YouTube video id or a SoundCloud track id. */
+  id: string
+  /** Canonical public page, also used as the embed target. */
+  pageUrl: string
+}
+
+/** Per-provider connection state shown on the "Источники" screen. */
+export interface SourceProviderState {
+  /** A key/client id is stored in the encrypted credential store. */
+  configured: boolean
+  /** The provider is switched on in Settings. */
+  enabled: boolean
+}
+
+export type SourcesStatus = Record<ExternalProvider, SourceProviderState>
+
+/** A search request against one external provider. */
+export interface SourceSearchQuery extends SearchQuery {
+  provider: ExternalProvider
 }
 
 /* ------------------------------------------------------------------ */
@@ -151,6 +192,8 @@ export interface Settings {
     archive: boolean
     lrclib: boolean
     wikisource: boolean
+    youtube: boolean
+    soundcloud: boolean
   }
   /** Normalise loudness across tracks. */
   normalizeLoudness: boolean

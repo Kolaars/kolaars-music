@@ -74,7 +74,11 @@ export function TrackMenu({
       onSelect: () => setPlaylistOpen(true)
     })
 
-    if (track.identifier) {
+    // An external track's identifier is a provider id, not an archive
+    // identifier: it has no album page in this app, and no file to download.
+    const external = Boolean(track.external) || track.source === 'external'
+
+    if (track.identifier && !external) {
       list.push({
         label: 'Перейти к альбому',
         icon: 'disc',
@@ -87,14 +91,16 @@ export function TrackMenu({
       })
     }
 
-    const canDownload = !track.offline && (Boolean(track.streamUrl) || Boolean(track.identifier))
-    list.push({
-      label: track.offline ? 'Уже доступно офлайн' : 'Скачать офлайн',
-      icon: 'download',
-      disabled: !canDownload,
-      separatorBefore: true,
-      onSelect: () => void useApp.getState().startDownload(track)
-    })
+    if (!external) {
+      const canDownload = !track.offline && (Boolean(track.streamUrl) || Boolean(track.identifier))
+      list.push({
+        label: track.offline ? 'Уже доступно офлайн' : 'Скачать офлайн',
+        icon: 'download',
+        disabled: !canDownload,
+        separatorBefore: true,
+        onSelect: () => void useApp.getState().startDownload(track)
+      })
+    }
 
     if (track.sourceUrl) {
       list.push({

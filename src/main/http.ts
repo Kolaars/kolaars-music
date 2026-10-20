@@ -42,6 +42,19 @@ export function clearHttpCache(): void {
 const UA =
   'KolaarsMusic/1.0 (+https://github.com/Kolaars/kolaars-music; open-source music player)'
 
+/** Hides API keys that providers pass in the query string from error text. */
+function redactUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    for (const name of ['key', 'client_id', 'access_token', 'token']) {
+      if (parsed.searchParams.has(name)) parsed.searchParams.set(name, '***')
+    }
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
 async function rawFetch(url: string, opts: HttpOptions = {}): Promise<Response> {
   const { timeoutMs = 20_000, retries = 2, headers } = opts
   let lastError: unknown
@@ -61,9 +74,9 @@ async function rawFetch(url: string, opts: HttpOptions = {}): Promise<Response> 
       if (!res.ok) {
         // 4xx other than 429 will not improve by retrying.
         if (res.status < 500 && res.status !== 429) {
-          throw Object.assign(new Error(`HTTP ${res.status} for ${url}`), { fatal: true })
+          throw Object.assign(new Error(`HTTP ${res.status} for ${redactUrl(url)}`), { fatal: true })
         }
-        throw new Error(`HTTP ${res.status} for ${url}`)
+        throw new Error(`HTTP ${res.status} for ${redactUrl(url)}`)
       }
       return res
     } catch (err) {
@@ -89,7 +102,7 @@ export async function fetchJson<T>(url: string, opts: HttpOptions = {}): Promise
   try {
     parsed = JSON.parse(text) as T
   } catch {
-    throw new Error(`Expected JSON from ${url} but received ${res.headers.get('content-type')}`)
+    throw new Error(`Expected JSON from ${redactUrl(url)} but received ${res.headers.get('content-type')}`)
   }
   cacheSet(key, parsed)
   return parsed

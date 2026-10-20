@@ -21,6 +21,7 @@ import { PlayerBar } from './components/PlayerBar'
 import { QueuePanel } from './components/QueuePanel'
 import { NowPlaying } from './components/NowPlaying'
 import { ImportListDialog } from './components/ImportListDialog'
+import { ExternalPlayer } from './components/ExternalPlayer'
 import { Toasts } from './components/Toasts'
 import { LyricsPanel } from './components/LyricsPanel'
 import { PromptModal } from './components/Dialogs'
@@ -32,6 +33,7 @@ import { PlaylistsView } from './views/PlaylistsView'
 import { PlaylistView } from './views/PlaylistView'
 import { FavoritesView } from './views/FavoritesView'
 import { DownloadsView } from './views/DownloadsView'
+import { SourcesView } from './views/SourcesView'
 import { AlbumView } from './views/AlbumView'
 import { SettingsView } from './views/SettingsView'
 import { AboutView } from './views/AboutView'
@@ -45,6 +47,7 @@ const ROUTE_TITLE: Record<Route['name'], string> = {
   playlist: 'Плейлист',
   favorites: 'Избранное',
   downloads: 'Загрузки',
+  sources: 'Источники',
   album: 'Альбом',
   settings: 'Настройки',
   shortcuts: 'Сокращения',
@@ -59,6 +62,7 @@ function routeFromName(name: string): Route | null {
     case 'playlists':
     case 'favorites':
     case 'downloads':
+    case 'sources':
     case 'settings':
     case 'shortcuts':
     case 'about':
@@ -107,6 +111,12 @@ export default function App(): JSX.Element {
         const snapshot = await api.store.load()
         if (cancelled || !snapshot.settings.resumeSession) return
         if (snapshot.session.queue.length === 0 && !snapshot.session.trackId) return
+        // Restoring is a background task: the window is already interactive
+        // while the snapshot is being read. If the user (or a test) started a
+        // track in the meantime, their choice wins — otherwise a slow restore
+        // would yank playback back to yesterday's queue.
+        const player = usePlayer.getState()
+        if (player.currentId || player.queue.length > 0) return
         restoreSession(snapshot.session)
       } catch {
         /* a fresh install has nothing to restore */
@@ -334,6 +344,8 @@ export default function App(): JSX.Element {
         return <FavoritesView />
       case 'downloads':
         return <DownloadsView />
+      case 'sources':
+        return <SourcesView />
       case 'album':
         return <AlbumView identifier={route.identifier} title={route.title} />
       case 'settings':
@@ -394,6 +406,8 @@ export default function App(): JSX.Element {
         onToggleQueue={toggleQueuePanel}
         onOpenNowPlaying={openNowPlaying}
       />
+
+      <ExternalPlayer />
 
       {nowPlayingOpen ? <NowPlaying /> : null}
 

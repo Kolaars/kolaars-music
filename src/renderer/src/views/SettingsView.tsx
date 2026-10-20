@@ -126,7 +126,7 @@ export function SettingsView(): JSX.Element {
         title="Источники"
         description="Kolaars работает офлайн из встроенного каталога. Онлайн-источники включаются отдельно"
       >
-        <Field label="Онлайн-источники" hint="Разрешить обращения к Internet Archive, LRCLIB и Wikisource">
+        <Field label="Онлайн-источники" hint="Разрешить обращения к Internet Archive, LRCLIB, Wikisource и подключённым сервисам">
           <Switch
             label="Онлайн-источники"
             checked={settings.onlineProviders}
@@ -155,6 +155,30 @@ export function SettingsView(): JSX.Element {
             label="Wikisource"
             checked={settings.providers.wikisource}
             onChange={(value) => void updateSettings({ providers: { ...settings.providers, wikisource: value } })}
+          />
+        </Field>
+
+        <Field
+          label="YouTube"
+          hint="Поиск через официальный API, звук — во встроенном плеере YouTube"
+        >
+          <Switch
+            label="YouTube"
+            checked={settings.providers.youtube}
+            onChange={(value) => void updateSettings({ providers: { ...settings.providers, youtube: value } })}
+          />
+        </Field>
+
+        <Field
+          label="SoundCloud"
+          hint="Поиск через официальный API, звук — в официальном Widget Player"
+        >
+          <Switch
+            label="SoundCloud"
+            checked={settings.providers.soundcloud}
+            onChange={(value) =>
+              void updateSettings({ providers: { ...settings.providers, soundcloud: value } })
+            }
           />
         </Field>
 

@@ -58,6 +58,13 @@ export const CH = {
   archiveResolve: 'archive:resolve',
   archiveItem: 'archive:item',
 
+  /* external sources (official players only) */
+  sourcesStatus: 'sources:status',
+  sourcesSetCredential: 'sources:set-credential',
+  sourcesClearCredential: 'sources:clear-credential',
+  sourcesSearch: 'sources:search',
+  sourcesResolve: 'sources:resolve',
+
   /* local files */
   localPickFiles: 'local:pick-files',
   localPickFolder: 'local:pick-folder',

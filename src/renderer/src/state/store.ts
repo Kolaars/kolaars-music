@@ -27,6 +27,7 @@ export type Route =
   | { name: 'playlist'; id: string }
   | { name: 'favorites' }
   | { name: 'downloads' }
+  | { name: 'sources' }
   | { name: 'album'; identifier: string; title?: string }
   | { name: 'settings' }
   | { name: 'shortcuts' }
@@ -318,7 +319,8 @@ export const useApp = create<AppState>((set, get) => ({
   ensureTrack: async (id) => {
     const existing = get().catalogIndex.get(id)
     if (!existing) return undefined
-    if (existing.streamUrl) return existing
+    // External tracks are played by the provider's own embedded player.
+    if (existing.streamUrl || existing.external) return existing
     if (!existing.identifier) return existing
 
     try {
@@ -390,18 +392,36 @@ export const useApp = create<AppState>((set, get) => ({
    * `catalogIndex` after a restart. This fills those gaps on demand.
    */
   resolveTracks: async (ids) => {
-    const pending = Array.from(new Set(ids)).filter(
+    const unique = Array.from(new Set(ids))
+    const pending = unique.filter(
       (id) => id.startsWith('arc:') && !get().catalogIndex.has(id)
     )
-    if (pending.length === 0) return
-    const settled = await Promise.all(
-      pending.map((id) => api.archive.resolve(id).catch(() => null))
+    const pendingExternal = unique.filter(
+      (id) => (id.startsWith('yt:') || id.startsWith('sc:')) && !get().catalogIndex.has(id)
     )
-    const found = settled.filter((track): track is Track => Boolean(track))
+    if (pending.length === 0 && pendingExternal.length === 0) return
+
+    const [archived, external] = await Promise.all([
+      Promise.all(pending.map((id) => api.archive.resolve(id).catch(() => null))),
+      Promise.all(pendingExternal.map((id) => api.sources.resolve(id).catch(() => null)))
+    ])
+    const found = [...archived, ...external].filter((track): track is Track => Boolean(track))
     if (found.length > 0) get().cacheTracks(found)
   },
 
   toggleFavorite: async (trackId) => {
+    const track = get().catalogIndex.get(trackId)
+    const adding = !get().favorites.has(trackId)
+    // A favourite persists across restarts, so an external track has to be
+    // written to the library before its id is remembered.
+    if (adding && track?.source === 'external') {
+      try {
+        await api.library.addTrack(track)
+        await get().refreshLibrary()
+      } catch {
+        /* the favourite below still works for this session */
+      }
+    }
     const favorites = await api.library.toggleFavorite(trackId)
     set({ favorites: new Set(favorites) })
   },
@@ -475,6 +495,12 @@ export const useApp = create<AppState>((set, get) => ({
 
   addTracksToPlaylist: async (id, tracks) => {
     if (tracks.length === 0) return
+    // Playlists keep ids only. External tracks are not part of the bundled
+    // catalog, so they are stored first to survive a restart.
+    const external = tracks.filter((track) => track.source === 'external')
+    if (external.length > 0) {
+      await Promise.all(external.map((track) => api.library.addTrack(track).catch(() => null)))
+    }
     // The playlist keeps ids only; cache the tracks so every view can resolve
     // them (the mosaic artwork and the track list both read `catalogIndex`).
     get().cacheTracks(tracks)

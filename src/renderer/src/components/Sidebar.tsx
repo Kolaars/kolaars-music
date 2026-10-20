@@ -24,7 +24,8 @@ const MAIN: NavEntry[] = [
   { route: { name: 'library' }, label: 'Библиотека', icon: 'library' },
   { route: { name: 'playlists' }, label: 'Плейлисты', icon: 'disc' },
   { route: { name: 'favorites' }, label: 'Избранное', icon: 'heart' },
-  { route: { name: 'downloads' }, label: 'Загрузки', icon: 'download' }
+  { route: { name: 'downloads' }, label: 'Загрузки', icon: 'download' },
+  { route: { name: 'sources' }, label: 'Источники', icon: 'link' }
 ]
 
 const FOOTER: NavEntry[] = [

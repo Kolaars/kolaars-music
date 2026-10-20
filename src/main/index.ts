@@ -17,11 +17,40 @@ import { registerIpc } from './ipc'
 import { buildAppMenu } from './menu'
 import * as store from './db'
 import { resolveDownloadDir, restoreDownloads } from './downloads'
+import { CONTENT_SECURITY_POLICY } from './csp'
+import { startRendererServer, type RendererServer } from './rendererServer'
 
 const isDev = !app.isPackaged
 const APP_ID = 'com.kolaars.music'
 
+/*
+ * Embedded provider players are started by an explicit click in the app. The
+ * iframe is cross-origin, so Chromium's autoplay heuristic cannot see that
+ * gesture and would otherwise keep the player paused.
+ */
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+
+/*
+ * A music player keeps playing when its window is covered by another app.
+ * Chromium otherwise treats an occluded window as background: animation frames
+ * stop, the scrubber and karaoke highlight freeze, and synthetic input can be
+ * dropped. Keep the renderer fully active even when the window is not on top.
+ */
+app.commandLine.appendSwitch('disable-renderer-backgrounding')
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+/*
+ * Windows reports a covered window as "occluded"; Chromium then treats it as
+ * hidden and can stop compositor frames and even drop input. A music player is
+ * expected to keep its scrubber and controls live while another app is on top,
+ * so opt out of the native occlusion calculation as well.
+ */
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+
 let mainWindow: BrowserWindow | null = null
+/** Loopback origin of the packaged renderer; `null` in dev-server mode. */
+let rendererOrigin: string | null = null
+let rendererServer: RendererServer | null = null
+const devRendererUrl = isDev ? process.env.ELECTRON_RENDERER_URL : undefined
 
 /* ------------------------------------------------------------------ */
 /* Paths                                                               */
@@ -101,15 +130,24 @@ function createWindow(): BrowserWindow {
   })
 
   window.webContents.on('will-navigate', (event, url) => {
-    const allowed = isDev && process.env.ELECTRON_RENDERER_URL
-    if (allowed && url.startsWith(allowed)) return
+    const sharesOrigin = (candidate: string | null | undefined): boolean => {
+      if (!candidate) return false
+      try {
+        return new URL(url).origin === new URL(candidate).origin
+      } catch {
+        return false
+      }
+    }
+    if (sharesOrigin(devRendererUrl) || sharesOrigin(rendererOrigin)) return
     if (url.startsWith('file://')) return
     event.preventDefault()
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
   })
 
-  if (isDev && process.env.ELECTRON_RENDERER_URL) {
-    void window.loadURL(process.env.ELECTRON_RENDERER_URL)
+  if (devRendererUrl) {
+    void window.loadURL(devRendererUrl)
+  } else if (rendererOrigin) {
+    void window.loadURL(`${rendererOrigin}/index.html`)
   } else {
     void window.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
@@ -123,28 +161,22 @@ function createWindow(): BrowserWindow {
 
 function applyContentSecurityPolicy(): void {
   // Only the Vite dev server needs to be exempt: it serves its modules over
-  // HTTP and relies on a websocket for HMR.
-  if (isDev && process.env.ELECTRON_RENDERER_URL) return
-
-  const policy = [
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: kmedia: https:",
-    "media-src 'self' blob: kmedia: https: http:",
-    "font-src 'self' data:",
-    "connect-src 'self' https: http:",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'none'",
-    "frame-ancestors 'none'"
-  ].join('; ')
+  // HTTP and relies on a websocket for HMR. The production renderer gets the
+  // same policy from the loopback server, so this hook is a fallback for a
+  // `file://` load.
+  if (devRendererUrl) return
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // Never stamp the app's policy onto a third-party response: the official
+    // YouTube/SoundCloud documents inside the iframes must keep their own CSP.
+    if (!details.url.startsWith('file://')) {
+      callback({ responseHeaders: details.responseHeaders })
+      return
+    }
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        'Content-Security-Policy': [policy]
+        'Content-Security-Policy': [CONTENT_SECURITY_POLICY]
       }
     })
   })
@@ -178,6 +210,19 @@ if (!app.requestSingleInstanceLock()) {
     buildAppMenu(() => mainWindow)
     applyContentSecurityPolicy()
 
+    // Serve the built UI from loopback. The official YouTube player needs a
+    // real HTTP origin with a referrer; `file://` is rejected with error 153.
+    if (!devRendererUrl) {
+      try {
+        rendererServer = await startRendererServer(path.join(__dirname, '../renderer'))
+        rendererOrigin = rendererServer.origin
+      } catch (error) {
+        // Fall back to `file://`: the app still works, but YouTube embeds may
+        // refuse to play. This only happens if loopback is unavailable.
+        console.error('Не удалось запустить локальный сервер интерфейса:', error)
+      }
+    }
+
     mainWindow = createWindow()
     mainWindow.on('closed', () => {
       mainWindow = null
@@ -200,5 +245,6 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     // Persist the library synchronously-ish before the process goes away.
     void store.flushAndClose()
+    void rendererServer?.close()
   })
 }

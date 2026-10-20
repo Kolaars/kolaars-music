@@ -16,6 +16,7 @@ import type {
 } from '@shared/tracklist'
 import type {
   ArchiveCollection,
+  ExternalProvider,
   Lyrics,
   LyricsCandidate,
   Playlist,
@@ -24,6 +25,8 @@ import type {
   SearchResultPage,
   Settings,
   SessionState,
+  SourceSearchQuery,
+  SourcesStatus,
   Track
 } from '@shared/types'
 
@@ -240,6 +243,17 @@ const api = {
       artwork: string
       license: string
     } | null> => invoke(CH.archiveItem, identifier)
+  },
+
+  sources: {
+    status: (): Promise<SourcesStatus> => invoke(CH.sourcesStatus),
+    setCredential: (provider: ExternalProvider, value: string): Promise<SourcesStatus> =>
+      invoke(CH.sourcesSetCredential, provider, value),
+    clearCredential: (provider: ExternalProvider): Promise<SourcesStatus> =>
+      invoke(CH.sourcesClearCredential, provider),
+    search: (query: SourceSearchQuery): Promise<SearchResultPage<Track>> =>
+      invoke(CH.sourcesSearch, query),
+    resolve: (trackId: string): Promise<Track | null> => invoke(CH.sourcesResolve, trackId)
   },
 
   local: {
