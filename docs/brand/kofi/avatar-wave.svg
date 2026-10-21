@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Kolaars Music">
+  <defs>
+    <linearGradient id="v2-bg" x1="96" y1="64" x2="944" y2="976" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#343E39"/>
+      <stop offset="0.52" stop-color="#2F6D8A"/>
+      <stop offset="1" stop-color="#5BC0EB"/>
+    </linearGradient>
+    <radialGradient id="v2-gloss" cx="0.28" cy="0.16" r="0.95">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.24"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="v2-shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.62" stop-color="#1b1160" stop-opacity="0"/>
+      <stop offset="1" stop-color="#1b1160" stop-opacity="0.3"/>
+    </linearGradient>
+    <filter id="v2-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#1a1060" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#v2-bg)"/>
+  <rect width="1024" height="1024" rx="224" fill="url(#v2-gloss)"/>
+  <rect width="1024" height="1024" rx="224" fill="url(#v2-shade)"/>
+
+  <g fill="#ffffff" filter="url(#v2-shadow)">
+    <rect x="208" y="437" width="56" height="150" rx="28"/>
+    <rect x="300" y="382" width="56" height="260" rx="28"/>
+    <rect x="392" y="327" width="56" height="370" rx="28"/>
+    <rect x="484" y="277" width="56" height="470" rx="28"/>
+    <rect x="576" y="327" width="56" height="370" rx="28"/>
+    <rect x="668" y="382" width="56" height="260" rx="28"/>
+    <rect x="760" y="437" width="56" height="150" rx="28"/>
+  </g>
+</svg>
