@@ -28,7 +28,7 @@ export function NowPlaying(): JSX.Element {
   return (
     <div className="nowplaying">
       <header className="nowplaying__bar">
-        <button type="button" className="btn btn--ghost btn--sm" title="Закрыть (Esc)" onClick={close}>
+        <button type="button" className="btn btn--ghost btn--sm" title="Свернуть (Esc)" onClick={close}>
           <Icon name="chevron-down" size={16} />
           Свернуть
         </button>
