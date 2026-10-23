@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import type { ExternalRef, Track } from '@shared/types'
+import { externalOpenUrl, isExternalBlocked } from '../lib/external'
 import { useApp } from '../state/store'
 import {
   consumeExternalAutoplay,
@@ -44,7 +45,7 @@ interface YouTubeNamespace {
       events?: {
         onReady?: () => void
         onStateChange?: (event: { data: number }) => void
-        onError?: () => void
+        onError?: (event: { data: number }) => void
       }
     }
   ) => YouTubePlayer
@@ -181,6 +182,10 @@ export function ExternalPlayer(): JSX.Element | null {
   const nowPlaying = useApp((state) => state.nowPlayingOpen)
   const track = useApp((state) => (currentId ? state.catalogIndex.get(currentId) : undefined))
 
+  // `markExternalBlocked` normally keeps such a track out of the player
+  // state; this is a second line of defence for restored or stale sessions.
+  // The card itself still renders for a blocked item so it can offer the
+  // "open in the service" fallback.
   if (!external || !track) return null
 
   return (
@@ -206,10 +211,26 @@ function ExternalCard({
 }): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
+  const blocked = isExternalBlocked(track) || external.embeddable === false
+  const service = external.provider === 'youtube' ? 'YouTube Music' : 'SoundCloud'
+  const item = external.provider === 'youtube' ? 'это видео' : 'этот трек'
+
   const handleReady = useCallback(() => setReady(true), [])
-  const handleError = useCallback((message: string | null) => setError(message), [])
+  const handleError = useCallback(
+    (message: string | null, block = false) => {
+      setError(message)
+      if (!block) return
+      // The provider's API said the item was embeddable, but its own player
+      // rejected it (age gate, licensing, region). Remember that so the row
+      // offers the external fallback next time instead of failing again.
+      useApp.getState().markExternalUnplayable(track.id)
+      usePlayer.getState().externalReport(external.id, { playing: false })
+    },
+    [track.id, external.id]
+  )
+
   const openExternal = (): void => {
-    void window.kolaars.app.openExternal(external.pageUrl)
+    void window.kolaars.app.openExternal(externalOpenUrl(track) ?? external.pageUrl)
   }
 
   return (
@@ -223,29 +244,43 @@ function ExternalCard({
           {external.provider === 'youtube' ? 'YouTube' : 'SoundCloud'}
         </span>
         <button type="button" className="externalplayer__link" onClick={openExternal}>
-          Открыть в сервисе
+          Открыть в {service}
         </button>
       </header>
 
-      <div className="externalplayer__stage">
-        {!ready && !error ? <span className="externalplayer__loading">Загружаем плеер…</span> : null}
-        {external.provider === 'youtube' ? (
-          <YouTubeStage external={external} onReady={handleReady} onError={handleError} />
-        ) : (
-          <SoundCloudStage external={external} onReady={handleReady} onError={handleError} />
-        )}
-      </div>
+      {!blocked ? (
+        <div className="externalplayer__stage">
+          {!ready && !error ? (
+            <span className="externalplayer__loading">Загружаем плеер…</span>
+          ) : null}
+          {external.provider === 'youtube' ? (
+            <YouTubeStage external={external} onReady={handleReady} onError={handleError} />
+          ) : (
+            <SoundCloudStage external={external} onReady={handleReady} onError={handleError} />
+          )}
+        </div>
+      ) : null}
 
       <div className="externalplayer__meta" title={`${track.artist} — ${track.title}`}>
         <strong>{track.title}</strong>
         <span>{track.artist}</span>
       </div>
 
-      {error ? (
+      {blocked ? (
+        <div className="externalplayer__blocked">
+          <Icon name="alert" size={18} />
+          <p>
+            Сервис не разрешает встраивание. Откройте {item} в {service}.
+          </p>
+          <button type="button" className="btn btn--primary btn--sm" onClick={openExternal}>
+            Открыть в {service}
+          </button>
+        </div>
+      ) : error ? (
         <p className="externalplayer__error">
           {error}
           <button type="button" onClick={openExternal}>
-            Открыть в сервисе
+            Открыть в {service}
           </button>
         </p>
       ) : null}
@@ -264,7 +299,7 @@ function YouTubeStage({
 }: {
   external: ExternalRef
   onReady: () => void
-  onError: (message: string | null) => void
+  onError: (message: string | null, block?: boolean) => void
 }): JSX.Element {
   const host = useRef<HTMLDivElement>(null)
 
@@ -321,7 +356,16 @@ function YouTubeStage({
                 usePlayer.getState().externalEnded()
               }
             },
-            onError: () => onError('YouTube не разрешил воспроизведение этого видео')
+            onError: (event) => {
+              const code = event?.data
+              if (code === 101 || code === 150) {
+                onError('YouTube не разрешил встраивание этого видео.', true)
+              } else if (code === 100) {
+                onError('Видео недоступно: удалено, приватное или ограничено.')
+              } else {
+                onError('YouTube не смог воспроизвести это видео.')
+              }
+            }
           }
         })
 

@@ -9,6 +9,7 @@
 import { useMemo, useState, type JSX } from 'react'
 import type { Track } from '@shared/types'
 import { api } from '../lib/api'
+import { isExternalBlocked, openExternalTrack } from '../lib/external'
 import { useApp, useIsFavorite } from '../state/store'
 import { usePlayer } from '../state/player'
 import { MenuButton, type MenuItemSpec } from './MenuButton'
@@ -35,29 +36,43 @@ export function TrackMenu({
 }: TrackMenuProps): JSX.Element {
   const favorite = useIsFavorite(track.id)
   const playlists = useApp((state) => state.playlists)
+  const live = useApp((state) => state.catalogIndex.get(track.id))
   const [playlistOpen, setPlaylistOpen] = useState(false)
   const [newName, setNewName] = useState('')
 
   const items = useMemo<MenuItemSpec[]>(() => {
     const list: MenuItemSpec[] = []
+    const blocked = isExternalBlocked(live ?? track)
 
-    list.push({
-      label: 'Воспроизвести',
-      icon: 'play',
-      onSelect: () => {
-        const player = usePlayer.getState()
-        if (context && context.length > 0) player.playTracks(context, contextIndex ?? 0)
-        else player.playTrack(track)
-      }
-    })
+    list.push(
+      blocked
+        ? {
+            label: 'Открыть в YouTube Music',
+            icon: 'external',
+            onSelect: () => openExternalTrack(track)
+          }
+        : {
+            label: 'Воспроизвести',
+            icon: 'play',
+            onSelect: () => {
+              const player = usePlayer.getState()
+              if (context && context.length > 0) player.playTracks(context, contextIndex ?? 0)
+              else player.playTrack(track)
+            }
+          }
+    )
     list.push({
       label: 'Играть следующим',
       icon: 'next',
+      disabled: blocked,
+      hint: blocked ? 'недоступно' : undefined,
       onSelect: () => usePlayer.getState().addToQueue(track, 'next')
     })
     list.push({
       label: 'В очередь',
       icon: 'queue',
+      disabled: blocked,
+      hint: blocked ? 'недоступно' : undefined,
       onSelect: () => usePlayer.getState().addToQueue(track, 'end')
     })
 
@@ -129,7 +144,7 @@ export function TrackMenu({
     }
 
     return list
-  }, [track, favorite, context, contextIndex])
+  }, [track, live, favorite, context, contextIndex])
 
   const addTo = async (playlistId: string): Promise<void> => {
     await useApp.getState().addTracksToPlaylist(playlistId, [track])

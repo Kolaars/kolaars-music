@@ -10,6 +10,7 @@ import { create } from 'zustand'
 import { makeId } from '@shared/defaults'
 import type { ExternalRef, QueueItem, RepeatMode, Track } from '@shared/types'
 import { errorMessage } from '../lib/api'
+import { isExternalBlocked, playableStartIndex, playableTracks } from '../lib/external'
 import { registerPlaybackReset, registerQueueForgetter, useApp } from './store'
 
 const TICK_MS = 66 // ~15 fps: plenty for karaoke line highlighting and a seek bar
@@ -239,6 +240,31 @@ function isBenignPlayError(error: unknown): boolean {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Selects a track that the provider refuses to embed without mounting a
+ * player that would immediately fail. The user can still open it on the
+ * service, and `next()` / `previous()` keep working.
+ */
+function markExternalBlocked(track: Track): void {
+  externalController?.pause()
+  pendingExternalAutoplay = false
+  const element = el()
+  element.pause()
+  element.removeAttribute('src')
+  element.load()
+  stopTicker()
+  usePlayer.setState({
+    currentId: track.id,
+    external: null,
+    externalReady: false,
+    playing: false,
+    buffering: false,
+    position: 0,
+    duration: track.duration ?? 0,
+    error: `YouTube не разрешил встраивание «${track.title}». Откройте видео в YouTube Music.`
+  })
+}
+
+/**
  * Hands the current item to the embedded provider player.
  *
  * The `<audio>` element is stopped and stripped of its source so a local file
@@ -246,6 +272,10 @@ function isBenignPlayError(error: unknown): boolean {
  */
 function startExternalPlayback(track: Track, autoplay: boolean): void {
   if (!track.external) return
+  if (isExternalBlocked(track)) {
+    markExternalBlocked(track)
+    return
+  }
   const element = el()
   element.pause()
   element.removeAttribute('src')
@@ -391,11 +421,23 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 
   playTracks: (tracks, startIndex = 0) => {
     if (tracks.length === 0) return
+    // Prefer the live catalog entry: a provider may have refused an item since
+    // the search results were captured on screen.
+    const live = tracks.map((track) => useApp.getState().catalogIndex.get(track.id) ?? track)
+    // A video whose uploader disabled embedding can never play in the official
+    // player, so it never enters the queue.
+    const playable = playableTracks(live)
+    if (playable.length === 0) {
+      useApp
+        .getState()
+        .toast('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.', 'info')
+      return
+    }
     // Register the tracks first: the queue stores ids only, and the loader looks
     // them up in the catalog index.
-    useApp.getState().cacheTracks(tracks)
-    const index = Math.max(0, Math.min(startIndex, tracks.length - 1))
-    let queue = toQueue(tracks)
+    useApp.getState().cacheTracks(playable)
+    const index = playableStartIndex(live, playable, startIndex)
+    let queue = toQueue(playable)
     const shuffle = get().shuffle
     unshuffled = shuffle ? queue : null
     if (shuffle) queue = shuffledFrom(queue, index)
@@ -573,7 +615,14 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   },
 
   addToQueue: (track, placement = 'end') => {
-    useApp.getState().cacheTracks([track])
+    const live = useApp.getState().catalogIndex.get(track.id) ?? track
+    if (isExternalBlocked(live)) {
+      useApp
+        .getState()
+        .toast('Сервис не разрешает встраивание — откройте это видео в YouTube Music.', 'info')
+      return
+    }
+    useApp.getState().cacheTracks([live])
     const { queue, queueIndex } = get()
     const item: QueueItem = { uid: makeId('q'), trackId: track.id }
     if (queue.length === 0) {
@@ -791,6 +840,15 @@ export function restoreSession(session: {
 
     if (track.external) {
       pendingExternalAutoplay = false
+      if (isExternalBlocked(track)) {
+        usePlayer.setState({
+          external: null,
+          externalReady: false,
+          duration: track.duration ?? 0,
+          error: `YouTube не разрешил встраивание «${track.title}». Откройте видео в YouTube Music.`
+        })
+        return
+      }
       usePlayer.setState({
         external: track.external,
         externalReady: false,

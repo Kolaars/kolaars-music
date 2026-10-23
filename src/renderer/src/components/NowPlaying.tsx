@@ -8,6 +8,7 @@ import { formatTime } from '../lib/format'
 import { useApp, useIsFavorite, useTrack } from '../state/store'
 import { usePlayer } from '../state/player'
 import { api } from '../lib/api'
+import { isExternalBlocked, openExternalTrack } from '../lib/external'
 import { Cover } from './Cover'
 import { GrainCanvas } from './GrainCanvas'
 import { Icon } from './Icon'
@@ -90,7 +91,16 @@ export function NowPlaying(): JSX.Element {
               ) : null}
             </div>
 
-            {track?.sourceUrl ? (
+            {track && isExternalBlocked(track) ? (
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => openExternalTrack(track)}
+              >
+                <Icon name="external" size={14} />
+                Открыть в YouTube Music
+              </button>
+            ) : track?.sourceUrl ? (
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"

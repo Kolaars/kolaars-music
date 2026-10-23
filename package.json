@@ -39,11 +39,12 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "test": "npm run test:tracklist && npm run test:covers && npm run test:names && npm run test:range",
+    "test": "npm run test:tracklist && npm run test:covers && npm run test:names && npm run test:range && npm run test:discord",
     "test:tracklist": "node scripts/test-tracklist.mjs",
     "test:covers": "node scripts/test-sidecar-cover.mjs",
     "test:names": "node scripts/test-file-names.mjs",
     "test:range": "node scripts/test-byte-range.mjs",
+    "test:discord": "node scripts/test-discord-presence.mjs",
     "smoke": "npm run build && node scripts/smoke.mjs",
     "smoke:packaged": "node scripts/smoke-packaged.mjs",
     "tools:seed": "node scripts/fetch-builder-tools.mjs",
@@ -54,6 +55,7 @@
     "dist:nsis": "npm run build && npm run tools:seed && electron-builder --win nsis"
   },
   "dependencies": {
+    "@xhayper/discord-rpc": "^1.5.1",
     "music-metadata": "^12.2.2",
     "zustand": "^5.0.15"
   },

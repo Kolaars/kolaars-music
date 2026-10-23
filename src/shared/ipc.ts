@@ -88,7 +88,12 @@ export const CH = {
 
   /* seed catalog */
   catalogSeed: 'catalog:seed',
-  catalogGenres: 'catalog:genres'
+  catalogGenres: 'catalog:genres',
+
+  /* Discord Rich Presence */
+  discordRpcConfigure: 'discord-rpc:configure',
+  discordRpcActivity: 'discord-rpc:activity',
+  discordRpcStatus: 'discord-rpc:status'
 } as const
 
 export type Channel = (typeof CH)[keyof typeof CH]
@@ -102,7 +107,8 @@ export const EV = {
   downloadProgress: 'event:download-progress',
   importProgress: 'event:import-progress',
   mediaCommand: 'event:media-command',
-  navigate: 'event:navigate'
+  navigate: 'event:navigate',
+  discordRpcStatus: 'event:discord-rpc-status'
 } as const
 
 export type MediaCommand =

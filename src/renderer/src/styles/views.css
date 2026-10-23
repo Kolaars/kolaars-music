@@ -336,6 +336,21 @@
   opacity: 0.55;
 }
 
+/* The uploader disabled embedding: the row stays readable, but its play
+ * action opens the official service instead of mounting a doomed player. */
+.trackrow--blocked .trackrow__number {
+  display: none;
+}
+
+.trackrow--blocked .trackrow__playicon {
+  display: block;
+  color: var(--danger);
+}
+
+.trackrow--blocked .trackrow__title {
+  color: var(--text-2);
+}
+
 /* Column templates per visible-column combination. */
 .tracklist--cover-album .tracklist__head,
 .tracklist--cover-album .trackrow {
@@ -445,6 +460,17 @@
 
 .trackrow__badges:empty {
   display: none;
+}
+
+.trackrow__external {
+  border: 0;
+  cursor: pointer;
+  text-transform: none;
+}
+
+.trackrow__external:hover {
+  color: var(--accent);
+  filter: brightness(1.15);
 }
 
 .trackrow__album {
@@ -1018,6 +1044,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Discord Rich Presence (Settings) */
+
+.discord__input {
+  width: 250px;
+}
+
+.discord__input--invalid {
+  border-color: var(--danger);
+}
+
+.discord__note {
+  flex-wrap: wrap;
 }
 
 .shortcuts {

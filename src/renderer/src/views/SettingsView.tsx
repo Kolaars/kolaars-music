@@ -1,7 +1,7 @@
 /** Settings — theme, playback, sources and local data. */
 
-import { useState, type JSX } from 'react'
-import type { Profile, ThemeMode } from '@shared/types'
+import { useEffect, useState, type JSX } from 'react'
+import type { DiscordRpcStatus, Profile, ThemeMode } from '@shared/types'
 import { DEFAULT_FORMAT_PRIORITY } from '@shared/defaults'
 import { api } from '../lib/api'
 import { useApp } from '../state/store'
@@ -191,6 +191,8 @@ export function SettingsView(): JSX.Element {
         </Field>
       </SectionCard>
 
+      <DiscordCard />
+
       <SectionCard icon="folder" title="Файлы" description="Где хранятся офлайн-копии">
         <Field label="Папка загрузок" hint="Пусто — используется папка данных приложения">
           <div className="field__row">
@@ -249,6 +251,184 @@ export function SettingsView(): JSX.Element {
       </SectionCard>
     </Page>
   )
+}
+
+/* ------------------------------------------------------------------ */
+/* Discord Rich Presence                                               */
+/* ------------------------------------------------------------------ */
+
+const DISCORD_DEVELOPER_PORTAL = 'https://discord.com/developers/applications'
+const DISCORD_ID_RE = /^\d{17,20}$/
+
+function DiscordCard(): JSX.Element {
+  const settings = useApp((state) => state.settings)
+  const updateSettings = useApp((state) => state.updateSettings)
+  const [status, setStatus] = useState<DiscordRpcStatus | null>(null)
+  const [draft, setDraft] = useState(settings.discordRpcClientId)
+
+  useEffect(() => {
+    setDraft(settings.discordRpcClientId)
+  }, [settings.discordRpcClientId])
+
+  useEffect(() => {
+    let live = true
+    void api.discord
+      .status()
+      .then((next) => {
+        if (live) setStatus(next)
+      })
+      .catch(() => undefined)
+    const off = api.discord.onStatus((next) => setStatus(next))
+    return () => {
+      live = false
+      off()
+    }
+  }, [])
+
+  const trimmed = draft.trim()
+  const idValid = trimmed === '' || DISCORD_ID_RE.test(trimmed)
+  const idChanged = trimmed !== settings.discordRpcClientId.trim()
+
+  const saveId = (): void => {
+    if (!idChanged || !idValid) return
+    void updateSettings({ discordRpcClientId: trimmed })
+  }
+
+  const statusMeta = describeDiscordStatus(status, settings.discordRpc, Boolean(settings.discordRpcClientId))
+
+  return (
+    <SectionCard
+      icon="link"
+      title="Discord Rich Presence"
+      description="Текущий трек в профиле Discord — по желанию, только на этом компьютере"
+    >
+      <Field
+        label="Показывать в Discord"
+        hint="Discord должен быть запущен как приложение для Windows. В браузерной версии Discord RPC не работает."
+      >
+        <Switch
+          label="Показывать в Discord"
+          checked={settings.discordRpc}
+          onChange={(value) => void updateSettings({ discordRpc: value })}
+        />
+      </Field>
+
+      <Field
+        label="Application ID"
+        hint="Встроенный идентификатор официального приложения Kolaars Music. Менять не нужно — поле оставлено для сборок с собственным приложением Discord."
+      >
+        <div className="field__row">
+          <input
+            className={`input discord__input${idValid ? '' : ' discord__input--invalid'}`}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="Discord Application ID"
+            aria-invalid={!idValid}
+            placeholder="123456789012345678"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={saveId}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') saveId()
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={!idChanged || !idValid}
+            onClick={saveId}
+          >
+            Сохранить
+          </button>
+        </div>
+      </Field>
+
+      <Field label="Состояние" hint={statusMeta.hint}>
+        <span className={statusMeta.className}>{statusMeta.label}</span>
+      </Field>
+
+      <p className="page__note discord__note">
+        <span>
+          Application ID официального приложения уже встроен. Кнопка «Скачать» появляется только у
+          открытых записей Internet Archive и ведёт на прямой файл. Для YouTube Music и SoundCloud
+          кнопка открывает страницу сервиса, а локальные файлы остаются без кнопки — Discord не умеет
+          запускать действия внутри плеера.
+        </span>
+        <button
+          type="button"
+          className="linklike"
+          onClick={() => void api.app.openExternal(DISCORD_DEVELOPER_PORTAL)}
+        >
+          Своё приложение
+        </button>
+      </p>
+    </SectionCard>
+  )
+}
+
+function describeDiscordStatus(
+  status: DiscordRpcStatus | null,
+  enabled: boolean,
+  hasClientId: boolean
+): { label: string; className: string; hint: string } {
+  if (!enabled) {
+    return {
+      label: 'Выключено',
+      className: 'badge',
+      hint: 'Rich Presence выключен — приложение не подключается к Discord.'
+    }
+  }
+  if (!hasClientId) {
+    return {
+      label: 'Нужен Application ID',
+      className: 'badge badge--accent',
+      hint: 'Вставьте Application ID приложения Discord выше и нажмите «Сохранить».'
+    }
+  }
+  if (!status) {
+    return { label: 'Проверяем…', className: 'badge', hint: 'Читаем состояние подключения.' }
+  }
+
+  switch (status.state) {
+    case 'connected':
+      return {
+        label: 'Подключено',
+        className: 'badge badge--done',
+        hint: 'Discord запущен и показывает текущий трек.'
+      }
+    case 'connecting':
+      return {
+        label: 'Подключение…',
+        className: 'badge badge--accent',
+        hint: 'Ищем локальный клиент Discord.'
+      }
+    case 'missing-client-id':
+      return {
+        label: 'Нужен Application ID',
+        className: 'badge badge--accent',
+        hint: status.error ?? 'Укажите Application ID приложения Discord.'
+      }
+    case 'error':
+      return {
+        label: 'Нет подключения',
+        className: 'badge badge--error',
+        hint: status.error ?? 'Discord не запущен или RPC недоступен.'
+      }
+    case 'disabled':
+      return {
+        label: 'Ожидание…',
+        className: 'badge',
+        hint: 'Ждём подтверждения от главного процесса.'
+      }
+    default:
+      return {
+        label: 'Выключено',
+        className: 'badge',
+        hint: 'Rich Presence выключен.'
+      }
+  }
 }
 
 /* ------------------------------------------------------------------ */

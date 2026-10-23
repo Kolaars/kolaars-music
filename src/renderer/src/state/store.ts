@@ -103,6 +103,12 @@ interface AppState {
   rememberTrackDuration: (id: string, seconds: number) => Promise<void>
   /** Registers transient tracks (search results, album items) so they can play. */
   cacheTracks: (tracks: Track[]) => void
+  /**
+   * Marks an external track as non-embeddable after the provider's player
+   * rejected it. `status.embeddable` is usually right, but age gates,
+   * licensing and region rules can still make the official player fail.
+   */
+  markExternalUnplayable: (trackId: string) => void
   /** Fetches any of `ids` that the catalog does not know about yet. */
   resolveTracks: (ids: string[]) => Promise<void>
 
@@ -383,6 +389,26 @@ export const useApp = create<AppState>((set, get) => ({
       }
       return changed ? { catalogIndex: nextIndex } : {}
     }),
+
+  markExternalUnplayable: (trackId) => {
+    const track = get().catalogIndex.get(trackId)
+    if (!track?.external || track.external.embeddable === false) return
+    const external = { ...track.external, embeddable: false }
+    const updated: Track = { ...track, external }
+
+    const catalogIndex = new Map(get().catalogIndex)
+    catalogIndex.set(trackId, updated)
+    set({
+      catalogIndex,
+      catalog: get().catalog.map((item) => (item.id === trackId ? updated : item)),
+      userTracks: get().userTracks.map((item) => (item.id === trackId ? updated : item))
+    })
+
+    // Only a track that is already in the library has a row to update there.
+    if (get().userTracks.some((item) => item.id === trackId)) {
+      void api.library.updateTrack(trackId, { external }).catch(() => undefined)
+    }
+  },
 
   /**
    * Resolves ids that are not in the loaded catalog yet.

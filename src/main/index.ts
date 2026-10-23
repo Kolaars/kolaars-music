@@ -14,6 +14,7 @@ import path from 'node:path'
 import { EV } from '@shared/ipc'
 import { registerMediaProtocol, registerMediaScheme } from './media'
 import { registerIpc } from './ipc'
+import { shutdownDiscordRpc } from './discordRpc'
 import { buildAppMenu } from './menu'
 import * as store from './db'
 import { resolveDownloadDir, restoreDownloads } from './downloads'
@@ -243,6 +244,8 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.on('before-quit', () => {
+    // Close the local Discord socket so the presence disappears promptly.
+    void shutdownDiscordRpc()
     // Persist the library synchronously-ish before the process goes away.
     void store.flushAndClose()
     void rendererServer?.close()

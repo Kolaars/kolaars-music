@@ -16,6 +16,8 @@ import type {
 } from '@shared/tracklist'
 import type {
   ArchiveCollection,
+  DiscordPresence,
+  DiscordRpcStatus,
   ExternalProvider,
   Lyrics,
   LyricsCandidate,
@@ -138,6 +140,16 @@ const api = {
     onMediaCommand: (cb: (command: MediaCommand) => void): (() => void) =>
       subscribe(EV.mediaCommand, cb),
     onNavigate: (cb: (route: string) => void): (() => void) => subscribe(EV.navigate, cb)
+  },
+
+  discord: {
+    configure: (enabled: boolean, clientId: string): Promise<DiscordRpcStatus> =>
+      invoke(CH.discordRpcConfigure, enabled, clientId),
+    setActivity: (presence: DiscordPresence | null): Promise<DiscordRpcStatus> =>
+      invoke(CH.discordRpcActivity, presence),
+    status: (): Promise<DiscordRpcStatus> => invoke(CH.discordRpcStatus),
+    onStatus: (cb: (status: DiscordRpcStatus) => void): (() => void) =>
+      subscribe(EV.discordRpcStatus, cb)
   },
 
   store: {

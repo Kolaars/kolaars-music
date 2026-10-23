@@ -15,6 +15,7 @@ import { useLyrics } from './state/lyrics'
 import { useTheme } from './hooks/useTheme'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useMediaSession } from './hooks/useMediaSession'
+import { useDiscordRpc } from './hooks/useDiscordRpc'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/Sidebar'
 import { PlayerBar } from './components/PlayerBar'
@@ -94,6 +95,7 @@ export default function App(): JSX.Element {
 
   useTheme(settings.theme, settings.accent)
   useMediaSession(currentTrack ?? null)
+  useDiscordRpc(ready)
 
   /* ---------------------------- bootstrap ------------------------- */
 

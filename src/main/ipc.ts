@@ -12,6 +12,8 @@ import path from 'node:path'
 import { CH, EV } from '@shared/ipc'
 import { makeId } from '@shared/defaults'
 import type {
+  DiscordPresence,
+  DiscordRpcStatus,
   ExternalProvider,
   Lyrics,
   LyricsCandidate,
@@ -25,6 +27,12 @@ import type {
   Track
 } from '@shared/types'
 import * as store from './db'
+import {
+  configureDiscordRpc,
+  discordRpcStatus,
+  setDiscordActivity,
+  setDiscordRpcStatusSink
+} from './discordRpc'
 import { deriveGenres, loadSeedCatalog } from './catalog'
 import { allowMediaPath, encodeMediaUrl } from './media'
 import { importPaths } from './localFiles'
@@ -119,6 +127,10 @@ function saveDialog(options: SaveDialogOptions): Promise<Electron.SaveDialogRetu
 export function registerIpc(windowGetter: () => BrowserWindow | null): void {
   getWindow = windowGetter
 
+  // Discord status is pushed to the settings screen as the local RPC socket
+  // comes and goes; the renderer never talks to Discord itself.
+  setDiscordRpcStatusSink((status) => send(EV.discordRpcStatus, status))
+
   /* ----------------------------- app ---------------------------- */
 
   handle(CH.appInfo, async () => {
@@ -163,6 +175,18 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     getWindow()?.close()
     return true
   })
+
+  /* --------------------------- Discord ------------------------- */
+
+  handle(CH.discordRpcConfigure, (_event, enabled: boolean, clientId: string): DiscordRpcStatus =>
+    configureDiscordRpc(enabled, clientId)
+  )
+
+  handle(CH.discordRpcActivity, (_event, presence: DiscordPresence | null): DiscordRpcStatus =>
+    setDiscordActivity(presence)
+  )
+
+  handle(CH.discordRpcStatus, (): DiscordRpcStatus => discordRpcStatus())
 
   /* ------------------------ settings & session ------------------ */
 

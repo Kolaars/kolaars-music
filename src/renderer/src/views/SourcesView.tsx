@@ -13,6 +13,7 @@ import type { ExternalProvider, SourcesStatus, Track } from '@shared/types'
 import { api, errorMessage } from '../lib/api'
 import { useApp } from '../state/store'
 import { playAll } from '../lib/play'
+import { isExternalBlocked } from '../lib/external'
 import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { TrackList } from '../components/TrackList'
@@ -57,6 +58,7 @@ const PROVIDERS: Record<
 export function SourcesView(): JSX.Element {
   const settings = useApp((state) => state.settings)
   const updateSettings = useApp((state) => state.updateSettings)
+  const catalogIndex = useApp((state) => state.catalogIndex)
   const toast = useApp((state) => state.toast)
 
   const [provider, setProvider] = useState<ExternalProvider>('youtube')
@@ -175,6 +177,9 @@ export function SourcesView(): JSX.Element {
 
   const canSearch = configured && enabled && online
   const totalPages = hasMore ? page + 1 : page
+  const blockedCount = results.filter((track) =>
+    isExternalBlocked(catalogIndex.get(track.id) ?? track)
+  ).length
 
   return (
     <Page className="page--sources">
@@ -363,6 +368,7 @@ export function SourcesView(): JSX.Element {
               <div className="results__bar">
                 <span className="results__count">
                   {loading ? 'Обновляем…' : `${trackCountLabel(results.length)} найдено`}
+                  {blockedCount > 0 ? ` · ${blockedCount} без встраивания` : ''}
                 </span>
                 <div className="results__pager">
                   <button

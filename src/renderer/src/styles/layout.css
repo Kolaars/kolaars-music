@@ -861,6 +861,9 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
+  /* YouTube's minimum embedded-player viewport is 200x200. At the card's
+   * 320 px width the 16:9 box would be only 180 px tall. */
+  min-height: 200px;
 }
 
 .externalplayer__youtube {
@@ -924,6 +927,25 @@
   padding: 0 10px 10px;
   color: var(--danger);
   font-size: 11px;
+}
+
+.externalplayer__blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 10px 10px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.externalplayer__blocked > svg {
+  color: var(--danger);
+}
+
+.externalplayer__blocked p {
+  margin: 0;
 }
 
 .externalplayer__error button {

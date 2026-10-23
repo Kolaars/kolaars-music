@@ -36,10 +36,15 @@ interface YouTubeSearchItem {
   snippet?: YouTubeSnippet
 }
 
+interface YouTubeVideoStatus {
+  embeddable?: boolean
+}
+
 interface YouTubeVideoItem {
   id?: string
   snippet?: YouTubeSnippet
   contentDetails?: { duration?: string }
+  status?: YouTubeVideoStatus
 }
 
 interface YouTubeListResponse<T> {
@@ -147,6 +152,7 @@ function trackFromVideo(video: YouTubeVideoItem | YouTubeSearchItem): Track | nu
   const snippet = video.snippet ?? {}
   const { title, artist } = splitArtist(snippet.title ?? id, snippet.channelTitle ?? '')
   const duration = 'contentDetails' in video ? parseIsoDuration(video.contentDetails?.duration) : null
+  const embeddable = 'status' in video ? video.status?.embeddable : undefined
 
   return {
     id: `yt:${id}`,
@@ -164,7 +170,8 @@ function trackFromVideo(video: YouTubeVideoItem | YouTubeSearchItem): Track | nu
     external: {
       provider: 'youtube',
       id,
-      pageUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`
+      pageUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`,
+      ...(typeof embeddable === 'boolean' ? { embeddable } : {})
     },
     filePath: null,
     license: null,
@@ -268,11 +275,11 @@ export async function searchYouTube(
   const details = await fetchJson<YouTubeListResponse<YouTubeVideoItem>>(
     `${API}/videos?` +
       new URLSearchParams({
-        part: 'snippet,contentDetails',
+        part: 'snippet,contentDetails,status',
         id: ids.join(','),
         key: apiKey,
         fields:
-          'items(id,snippet(title,channelTitle,publishedAt,tags,thumbnails),contentDetails(duration))'
+          'items(id,snippet(title,channelTitle,publishedAt,tags,thumbnails),contentDetails(duration),status(embeddable))'
       })
   ).catch((error: unknown) => friendlyYouTubeError(error))
 
@@ -300,11 +307,11 @@ export async function fetchYouTubeTrack(apiKey: string, videoId: string): Promis
   const data = await fetchJson<YouTubeListResponse<YouTubeVideoItem>>(
     `${API}/videos?` +
       new URLSearchParams({
-        part: 'snippet,contentDetails',
+        part: 'snippet,contentDetails,status',
         id,
         key: apiKey,
         fields:
-          'items(id,snippet(title,channelTitle,publishedAt,tags,thumbnails),contentDetails(duration))'
+          'items(id,snippet(title,channelTitle,publishedAt,tags,thumbnails),contentDetails(duration),status(embeddable))'
       })
   ).catch((error: unknown) => friendlyYouTubeError(error))
   const item = data.items?.[0]

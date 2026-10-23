@@ -9,6 +9,7 @@
 import type { JSX, ReactNode } from 'react'
 import type { Track } from '@shared/types'
 import { formatTime } from '../lib/format'
+import { isExternalBlocked, openExternalTrack } from '../lib/external'
 import { useApp } from '../state/store'
 import { usePlayer } from '../state/player'
 import { Cover } from './Cover'
@@ -108,24 +109,38 @@ function TrackRow({
   const playing = usePlayer((state) => (state.currentId === track.id ? state.playing : false))
   const favorite = useApp((state) => state.favorites.has(track.id))
   const hasLyrics = useApp((state) => state.lyricsIds.has(track.id))
+  // Playback may discover that the provider refuses an item even when the
+  // search response said it was embeddable. Read the live catalog entry so the
+  // row updates as soon as that happens.
+  const live = useApp((state) => state.catalogIndex.get(track.id))
+  const blocked = isExternalBlocked(live ?? track)
   const unavailable = !track.streamUrl && !track.identifier && !track.external
+  const play = blocked ? () => openExternalTrack(track) : onPlay
 
   return (
     <div
-      className={`trackrow${isCurrent ? ' trackrow--current' : ''}${unavailable ? ' trackrow--unavailable' : ''}`}
+      className={`trackrow${isCurrent ? ' trackrow--current' : ''}${
+        unavailable ? ' trackrow--unavailable' : ''
+      }${blocked ? ' trackrow--blocked' : ''}`}
       role="row"
-      onDoubleClick={onPlay}
+      onDoubleClick={play}
     >
       <button
         type="button"
         className="trackrow__index"
-        title={isCurrent && playing ? 'Пауза' : 'Воспроизвести'}
-        onClick={() => (isCurrent ? usePlayer.getState().toggle() : onPlay())}
+        title={
+          blocked
+            ? 'Недоступно для встраивания — открыть в YouTube Music'
+            : isCurrent && playing
+              ? 'Пауза'
+              : 'Воспроизвести'
+        }
+        onClick={() => (isCurrent && !blocked ? usePlayer.getState().toggle() : play())}
       >
         <span className="trackrow__number">{index + 1}</span>
         <Icon
           className="trackrow__playicon"
-          name={isCurrent && playing ? 'pause' : 'play'}
+          name={blocked ? 'external' : isCurrent && playing ? 'pause' : 'play'}
           size={13}
         />
       </button>
@@ -141,7 +156,12 @@ function TrackRow({
       ) : null}
 
       <div className="trackrow__main">
-        <button type="button" className="trackrow__titlebtn" title={track.title} onClick={onPlay}>
+        <button
+          type="button"
+          className="trackrow__titlebtn"
+          title={blocked ? 'Недоступно для встраивания — открыть в YouTube Music' : track.title}
+          onClick={play}
+        >
           <span className="trackrow__title">{track.title}</span>
         </button>
         <span className="trackrow__subtitle">
@@ -154,6 +174,23 @@ function TrackRow({
               <Icon name="external" size={11} />
               {track.external.provider === 'youtube' ? 'YouTube' : 'SoundCloud'}
             </span>
+          ) : null}
+          {blocked ? (
+            <>
+              <span className="badge badge--error" title="Сервис не разрешает встраивание этого видео">
+                <Icon name="alert" size={11} />
+                не встраивается
+              </span>
+              <button
+                type="button"
+                className="badge badge--accent trackrow__external"
+                title="Открыть видео в YouTube Music"
+                onClick={() => openExternalTrack(track)}
+              >
+                <Icon name="external" size={11} />
+                открыть в YouTube Music
+              </button>
+            </>
           ) : null}
           {track.offline ? (
             <span className="badge" title="Доступно офлайн">

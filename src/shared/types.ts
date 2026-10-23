@@ -88,6 +88,14 @@ export interface ExternalRef {
   id: string
   /** Canonical public page, also used as the embed target. */
   pageUrl: string
+  /**
+   * Whether the provider allows this item to be played in its embedded
+   * player. YouTube returns this as `status.embeddable`; `false` means the
+   * uploader disabled embedding and the official player will refuse to play.
+   * `undefined` means the provider does not report it (or the track was saved
+   * before this field existed).
+   */
+  embeddable?: boolean
 }
 
 /** Per-provider connection state shown on the "Источники" screen. */
@@ -99,6 +107,58 @@ export interface SourceProviderState {
 }
 
 export type SourcesStatus = Record<ExternalProvider, SourceProviderState>
+
+/* ------------------------------------------------------------------ */
+/* Discord Rich Presence                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A snapshot of what is playing, sent from the renderer to the main process.
+ * The main process owns the Discord connection; the renderer only describes
+ * the current track.
+ */
+export interface DiscordPresence {
+  title: string
+  artist: string
+  album?: string | null
+  /** Playback position in seconds when the snapshot was taken. */
+  position?: number | null
+  duration?: number | null
+  playing: boolean
+  /**
+   * Public https cover URL. Discord fetches artwork itself, so a local file
+   * path or the kmedia:// scheme cannot be used here; those tracks stay without
+   * an image unless the Discord application provides a fallback asset.
+   */
+  artworkUrl?: string | null
+  /**
+   * Public direct file URL. Set only for tracks the app may download
+   * (Internet Archive / bundled open catalog), never for external players.
+   */
+  downloadUrl?: string | null
+  /** Public landing page for attribution or for services without downloads. */
+  sourceUrl?: string | null
+  /** Explicit button label when `sourceUrl` is not the track's own page. */
+  sourceLabel?: string | null
+  /** Public download page for Kolaars Music itself, used when a slot is free. */
+  appUrl?: string | null
+  appLabel?: string | null
+  /** Human-readable service name, e.g. "YouTube Music". */
+  provider?: string | null
+}
+
+export type DiscordRpcState =
+  | 'disabled'
+  | 'missing-client-id'
+  | 'connecting'
+  | 'connected'
+  | 'error'
+
+export interface DiscordRpcStatus {
+  state: DiscordRpcState
+  /** Human-readable explanation shown under the settings toggle. */
+  error?: string | null
+}
 
 /** A search request against one external provider. */
 export interface SourceSearchQuery extends SearchQuery {
@@ -203,6 +263,13 @@ export interface Settings {
   volumeTrim: number
   /** Show a desktop notification when the track changes. */
   notifications: boolean
+  /** Show the current track in Discord Rich Presence. */
+  discordRpc: boolean
+  /**
+   * Discord Application ID used for Rich Presence. This is a public identifier,
+   * not a bot token or client secret, and is safe to keep in the settings file.
+   */
+  discordRpcClientId: string
   /**
    * Order in which local formats are preferred, best first. When the same song
    * sits on disk in several formats, only the highest ranked one is imported.
