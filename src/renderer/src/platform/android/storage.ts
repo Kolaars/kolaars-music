@@ -55,14 +55,18 @@ async function readText(path: string): Promise<string | null> {
   }
 }
 
+/** Directories already confirmed to exist, so autosave does not re-create them. */
+const ensuredDirs = new Set<string>()
+
 async function ensureDir(path: string): Promise<void> {
-  if (!path) return
+  if (!path || ensuredDirs.has(path)) return
   try {
     await Filesystem.mkdir({ path, directory: Directory.Data, recursive: true })
   } catch (error) {
     // Already existing is reported as an error by some plugins.
     if (!/exist/i.test(String(error))) throw error
   }
+  ensuredDirs.add(path)
 }
 
 async function writeText(path: string, text: string): Promise<void> {

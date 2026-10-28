@@ -11,7 +11,6 @@
 
 import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
-import { Capacitor } from '@capacitor/core'
 import type {
   AppInfo,
   DownloadRecord,
@@ -332,7 +331,11 @@ export function createAndroidApi(): KolaarsApi {
           electron: '—',
           chrome,
           node: '—',
-          platform: Capacitor.getPlatform(),
+          // Hard-coded: this adapter only ever runs inside the Android shell.
+          // `Capacitor.getPlatform()` reports 'web' while the native bridge is
+          // still being injected, and bootstrap reads this field once, so the
+          // whole UI would think it is on the desktop.
+          platform: 'android',
           userData: store.userDataLabel(),
           downloadsDir: store.downloadsLabel(),
           seedTracks: SEED_COUNT,

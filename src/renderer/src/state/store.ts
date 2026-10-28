@@ -19,6 +19,29 @@ export interface TrackListImportResult {
   playlist: Playlist | null
 }
 
+/**
+ * Retries a bootstrap task.
+ *
+ * On Android the native plugins finish registering a moment after the page
+ * starts, so the very first read can reject even though the same call works a
+ * heartbeat later. Without the retry the app shows an empty catalog until it
+ * is restarted.
+ */
+async function withRetry<T>(task: () => Promise<T>, attempts = 3, delayMs = 400): Promise<T> {
+  let last: unknown
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await task()
+    } catch (error) {
+      last = error
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)))
+      }
+    }
+  }
+  throw last
+}
+
 export type Route =
   | { name: 'discover' }
   | { name: 'search'; query?: string }
@@ -239,14 +262,16 @@ export const useApp = create<AppState>((set, get) => ({
 
   bootstrap: async () => {
     try {
-      const [info, snapshot, seed, shelves, downloads, profiles] = await Promise.all([
-        api.app.info(),
-        api.store.load(),
-        api.catalog.seed(),
-        api.catalog.shelves(),
-        api.downloads.list(),
-        api.profiles.list()
-      ])
+      const [info, snapshot, seed, shelves, downloads, profiles] = await withRetry(() =>
+        Promise.all([
+          api.app.info(),
+          api.store.load(),
+          api.catalog.seed(),
+          api.catalog.shelves(),
+          api.downloads.list(),
+          api.profiles.list()
+        ])
+      )
 
       const { catalog, catalogIndex } = buildCatalog(seed, snapshot.tracks)
 
@@ -280,6 +305,7 @@ export const useApp = create<AppState>((set, get) => ({
         ...(snapshot.session.trackId ? [snapshot.session.trackId] : [])
       ])
     } catch (error) {
+      console.error('[bootstrap]', error)
       set({ ready: true })
       get().toast(`Не удалось запустить приложение: ${errorMessage(error)}`, 'error')
     }
