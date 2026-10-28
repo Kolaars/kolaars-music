@@ -27,6 +27,8 @@
     "src/preload/**/*",
     "src/shared/**/*",
     "data/*.json",
-    "electron.vite.config.ts"
+    "electron.vite.config.ts",
+    "vite.mobile.config.ts",
+    "capacitor.config.ts"
   ]
 }

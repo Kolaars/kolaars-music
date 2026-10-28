@@ -1,0 +1,39 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    
+    repositories {
+        // Maven Central through Cloudflare drops TLS handshakes from this network
+        // when many connections are open, which used to fail the build halfway
+        // through dependency resolution. Google's mirror of Maven Central is used
+        // first, with a second mirror and the originals as fall-backs.
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.google.gms:google-services:4.4.4'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    repositories {
+        // Same mirror list as above: these repositories resolve every
+        // dependency of the app and of the Capacitor plugin modules.
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

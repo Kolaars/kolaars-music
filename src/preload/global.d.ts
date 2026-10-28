@@ -1,4 +1,4 @@
-import type { KolaarsApi } from './index'
+import type { KolaarsApi } from '../shared/api'
 
 declare global {
   interface Window {

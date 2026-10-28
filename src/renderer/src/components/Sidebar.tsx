@@ -34,6 +34,13 @@ const FOOTER: NavEntry[] = [
   { route: { name: 'about' }, label: 'О программе', icon: 'info' }
 ]
 
+/**
+ * Entries that do not exist on a phone: there is no keyboard, and downloads and
+ * external sources arrive in a later Android phase. Hidden rather than shown as
+ * a dead button — see `docs/android.md`.
+ */
+const ANDROID_HIDDEN: Route['name'][] = ['shortcuts', 'downloads', 'sources']
+
 export interface SidebarProps {
   onNewPlaylist: () => void
 }
@@ -45,6 +52,7 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
   const userTracks = useApp((state) => state.userTracks)
   const favoriteCount = useApp((state) => state.favorites.size)
   const downloads = useApp((state) => state.downloads)
+  const isAndroid = useApp((state) => state.appInfo?.platform === 'android')
   const renamePlaylist = useApp((state) => state.renamePlaylist)
   const deletePlaylist = useApp((state) => state.deletePlaylist)
 
@@ -54,6 +62,10 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
   const activeDownloads = downloads.filter(
     (record) => record.status === 'downloading' || record.status === 'queued'
   ).length
+
+  /** Hides desktop-only entries on Android. */
+  const visible = (entries: NavEntry[]): NavEntry[] =>
+    isAndroid ? entries.filter((entry) => !ANDROID_HIDDEN.includes(entry.route.name)) : entries
 
   const countFor = (name: Route['name']): number | null => {
     if (name === 'library') return userTracks.length
@@ -93,7 +105,7 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
         </span>
       </div>
 
-      <nav className="sidebar__nav">{MAIN.map(renderEntry)}</nav>
+      <nav className="sidebar__nav">{visible(MAIN).map(renderEntry)}</nav>
 
       <div className="sidebar__section">
         <header className="sidebar__sectionhead">
@@ -157,7 +169,7 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
         </div>
       </div>
 
-      <nav className="sidebar__foot">{FOOTER.map(renderEntry)}</nav>
+      <nav className="sidebar__foot">{visible(FOOTER).map(renderEntry)}</nav>
 
       <PromptModal
         open={renaming !== null}

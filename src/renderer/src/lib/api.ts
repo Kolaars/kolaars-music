@@ -5,7 +5,7 @@
  * backend in tests and keeps every call site free of `any`.
  */
 
-import type { KolaarsApi } from '../../../preload/index'
+import type { KolaarsApi } from '@shared/api'
 
 export const api: KolaarsApi = window.kolaars
 

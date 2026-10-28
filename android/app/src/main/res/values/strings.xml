@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kolaars Music</string>
+    <string name="title_activity_main">Kolaars Music</string>
+    <string name="package_name">app.kolaars.music</string>
+    <string name="custom_url_scheme">app.kolaars.music</string>
+</resources>

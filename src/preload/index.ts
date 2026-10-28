@@ -10,6 +10,17 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CH, EV, type MediaCommand } from '@shared/ipc'
 import type {
+  AppInfo,
+  BundledSong,
+  DownloadRecord,
+  ImportOutcome,
+  KolaarsApi,
+  LibrarySnapshot,
+  ProfilesState,
+  ShelfDescriptor,
+  WikisourceHit
+} from '@shared/api'
+import type {
   ImportListOutcome,
   ImportListRequest,
   PlaylistFileFormat
@@ -22,7 +33,6 @@ import type {
   Lyrics,
   LyricsCandidate,
   Playlist,
-  Profile,
   SearchQuery,
   SearchResultPage,
   Settings,
@@ -31,6 +41,18 @@ import type {
   SourcesStatus,
   Track
 } from '@shared/types'
+
+export type {
+  AppInfo,
+  BundledSong,
+  DownloadRecord,
+  ImportOutcome,
+  KolaarsApi,
+  LibrarySnapshot,
+  ProfilesState,
+  ShelfDescriptor,
+  WikisourceHit
+} from '@shared/api'
 
 type IpcEnvelope<T> = { ok: true; data: T } | { ok: false; error: string }
 
@@ -54,81 +76,7 @@ function subscribe<T>(channel: string, callback: (payload: T) => void): () => vo
 
 /* ------------------------------------------------------------------ */
 
-export interface DownloadRecord {
-  trackId: string
-  title: string
-  artist: string
-  filePath: string
-  bytesTotal: number
-  bytesDone: number
-  status: 'queued' | 'downloading' | 'done' | 'error' | 'cancelled'
-  error?: string
-  startedAt: number
-  finishedAt?: number
-}
-
-export interface ImportOutcome {
-  tracks: Track[]
-  lyrics: Lyrics[]
-  skipped: string[]
-  failed: { path: string; error: string }[]
-  /** Files left out because the same song is already there in a better format. */
-  duplicates: { path: string; kept: string }[]
-}
-
-export interface AppInfo {
-  name: string
-  version: string
-  electron: string
-  chrome: string
-  node: string
-  platform: string
-  userData: string
-  downloadsDir: string
-  seedTracks: number
-  profile: { id: string; name: string } | null
-  lyricsPack: { name: string; version: string; license: string; note: string; count: number }
-}
-
-export interface ProfilesState {
-  activeId: string
-  profiles: Profile[]
-}
-
-export interface BundledSong {
-  id: string
-  title: string
-  artist: string
-  year?: number
-  language?: string
-  license: string
-}
-
-export interface WikisourceHit {
-  title: string
-  pageId: number
-  snippet: string
-  url: string
-}
-
-export interface ShelfDescriptor {
-  id: string
-  title: string
-  subtitle: string
-  query: string
-}
-
-export interface LibrarySnapshot {
-  settings: Settings
-  playlists: Playlist[]
-  favorites: string[]
-  tracks: Track[]
-  history: { trackId: string; at: number }[]
-  session: SessionState
-  lyricsIds: string[]
-}
-
-const api = {
+const api: KolaarsApi = {
   app: {
     info: (): Promise<AppInfo> => invoke(CH.appInfo),
     openExternal: (url: string): Promise<boolean> => invoke(CH.openExternal, url),
@@ -291,7 +239,5 @@ const api = {
       subscribe(EV.importProgress, cb)
   }
 }
-
-export type KolaarsApi = typeof api
 
 contextBridge.exposeInMainWorld('kolaars', api)

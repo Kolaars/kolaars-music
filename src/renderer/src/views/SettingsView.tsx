@@ -15,6 +15,7 @@ const ACCENTS = ['#7c5cff', '#4f8cff', '#22c1a4', '#f4b740', '#ff6b6b', '#ff5ea8
 export function SettingsView(): JSX.Element {
   const settings = useApp((state) => state.settings)
   const appInfo = useApp((state) => state.appInfo)
+  const isAndroid = appInfo?.platform === 'android'
   const updateSettings = useApp((state) => state.updateSettings)
   const setRoute = useApp((state) => state.setRoute)
 
@@ -112,13 +113,15 @@ export function SettingsView(): JSX.Element {
           />
         </Field>
 
-        <Field label="Уведомления" hint="Показывать системное уведомление при смене трека">
-          <Switch
-            label="Уведомления"
-            checked={settings.notifications}
-            onChange={(value) => void updateSettings({ notifications: value })}
-          />
-        </Field>
+        {isAndroid ? null : (
+          <Field label="Уведомления" hint="Показывать системное уведомление при смене трека">
+            <Switch
+              label="Уведомления"
+              checked={settings.notifications}
+              onChange={(value) => void updateSettings({ notifications: value })}
+            />
+          </Field>
+        )}
       </SectionCard>
 
       <SectionCard
@@ -191,55 +194,59 @@ export function SettingsView(): JSX.Element {
         </Field>
       </SectionCard>
 
-      <DiscordCard />
+      {isAndroid ? null : <DiscordCard />}
 
-      <SectionCard icon="folder" title="Файлы" description="Где хранятся офлайн-копии">
-        <Field label="Папка загрузок" hint="Пусто — используется папка данных приложения">
-          <div className="field__row">
-            <span className="field__path" title={settings.downloadDir || appInfo?.downloadsDir}>
-              {settings.downloadDir || appInfo?.downloadsDir || 'по умолчанию'}
-            </span>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => void pickDownloadDir()}>
-              <Icon name="folder" size={15} />
-              Выбрать
-            </button>
-            {settings.downloadDir ? (
+      {isAndroid ? null : (
+        <SectionCard icon="folder" title="Файлы" description="Где хранятся офлайн-копии">
+          <Field label="Папка загрузок" hint="Пусто — используется папка данных приложения">
+            <div className="field__row">
+              <span className="field__path" title={settings.downloadDir || appInfo?.downloadsDir}>
+                {settings.downloadDir || appInfo?.downloadsDir || 'по умолчанию'}
+              </span>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => void pickDownloadDir()}>
+                <Icon name="folder" size={15} />
+                Выбрать
+              </button>
+              {settings.downloadDir ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => void updateSettings({ downloadDir: '' })}
+                >
+                  Сбросить
+                </button>
+              ) : null}
+            </div>
+          </Field>
+
+          <Field label="Папка данных" hint="Здесь лежит kolaars.json, обложки из тегов и загрузки по умолчанию">
+            <div className="field__row">
+              <span className="field__path" title={appInfo?.userData}>
+                {appInfo?.userData ?? '—'}
+              </span>
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
-                onClick={() => void updateSettings({ downloadDir: '' })}
+                disabled={!appInfo?.userData}
+                onClick={() => appInfo?.userData && void api.local.reveal(appInfo.userData)}
               >
-                Сбросить
+                <Icon name="external" size={15} />
+                Открыть
               </button>
-            ) : null}
-          </div>
-        </Field>
+            </div>
+          </Field>
+        </SectionCard>
+      )}
 
-        <Field label="Папка данных" hint="Здесь лежит kolaars.json, обложки из тегов и загрузки по умолчанию">
-          <div className="field__row">
-            <span className="field__path" title={appInfo?.userData}>
-              {appInfo?.userData ?? '—'}
-            </span>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              disabled={!appInfo?.userData}
-              onClick={() => appInfo?.userData && void api.local.reveal(appInfo.userData)}
-            >
-              <Icon name="external" size={15} />
-              Открыть
-            </button>
-          </div>
-        </Field>
-      </SectionCard>
-
-      <SectionCard
-        icon="music"
-        title="Формат файлов"
-        description="Какой файл оставить, если одна и та же песня лежит на диске в нескольких форматах"
-      >
-        <FormatPriorityList />
-      </SectionCard>
+      {isAndroid ? null : (
+        <SectionCard
+          icon="music"
+          title="Формат файлов"
+          description="Какой файл оставить, если одна и та же песня лежит на диске в нескольких форматах"
+        >
+          <FormatPriorityList />
+        </SectionCard>
+      )}
 
       <SectionCard icon="shield" title="Правовая информация" description="Лицензии, источники и благодарности">
         <Field label="Код приложения" hint="Kolaars Music распространяется под лицензией MIT">

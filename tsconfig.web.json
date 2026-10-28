@@ -21,12 +21,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/renderer/src/*"],
-      "@shared/*": ["src/shared/*"]
+      "@shared/*": ["src/shared/*"],
+      "@data/*": ["data/*"]
     }
   },
   "include": [
     "src/renderer/src/**/*",
     "src/shared/**/*",
-    "src/preload/**/*"
+    "src/preload/**/*",
+    "data/*.json"
   ]
 }

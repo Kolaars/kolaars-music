@@ -1,0 +1,192 @@
+/* ==========================================================================
+   Android / Capacitor adjustments.
+
+   Loaded only by `main.mobile.tsx`, after the desktop styles, so every rule here
+   wins without touching the Electron layout. The goal of this first pass is a
+   usable phone layout: window chrome gone, navigation becomes a scrollable
+   strip, and the player bar stacks instead of using three desktop columns.
+   ========================================================================== */
+
+html.platform-android {
+  --titlebar-h: 48px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.platform-android,
+html.platform-android body {
+  overscroll-behavior: none;
+}
+
+html.platform-android body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.platform-android input,
+html.platform-android textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+html.platform-android .app-shell {
+  height: 100vh;
+  height: 100dvh;
+  box-sizing: border-box;
+  /* Android 15 draws edge-to-edge even without asking; keep the title bar clear
+     of the status bar. The value is 0 when the system already insets the view. */
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* The WebView has no window chrome: only the drag strip and titles remain. */
+html.platform-android .titlebar {
+  -webkit-app-region: no-drag;
+  border-bottom: 1px solid var(--line);
+}
+
+html.platform-android .titlebar__window {
+  display: none;
+}
+
+html.platform-android .titlebar__drag {
+  -webkit-app-region: no-drag;
+  padding-inline: 12px;
+}
+
+html.platform-android .page {
+  gap: 14px;
+  padding: 16px 14px 28px;
+}
+
+html.platform-android .page__head {
+  gap: 12px;
+}
+
+html.platform-android .page__title {
+  font-size: 20px;
+}
+
+/* ---------- Narrow screens: navigation becomes a horizontal strip ---------- */
+
+@media (max-width: 860px) {
+  html.platform-android .app-body {
+    flex-direction: column;
+  }
+
+  html.platform-android .sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    scrollbar-width: none;
+  }
+
+  html.platform-android .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  html.platform-android .sidebar__brand,
+  html.platform-android .sidebar__section {
+    display: none;
+  }
+
+  html.platform-android .sidebar__nav,
+  html.platform-android .sidebar__foot {
+    flex-direction: row;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  html.platform-android .sidebar__foot {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding: 0 0 0 6px;
+    margin-left: 4px;
+  }
+
+  html.platform-android .navitem {
+    height: 38px;
+    padding: 0 12px;
+    gap: 7px;
+    border-radius: 999px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  html.platform-android .navitem__label {
+    display: inline;
+  }
+
+  html.platform-android .navitem--active {
+    background: var(--accent-weak);
+  }
+
+  /* ---------- Player bar ---------- */
+
+  html.platform-android .playerbar {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'now right'
+      'center center';
+    gap: 2px 8px;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.platform-android .playerbar__now {
+    grid-area: now;
+  }
+
+  html.platform-android .playerbar__center {
+    grid-area: center;
+  }
+
+  html.platform-android .playerbar__right {
+    grid-area: right;
+  }
+
+  html.platform-android .playerbar__line {
+    gap: 6px;
+  }
+
+  html.platform-android .playerbar__time {
+    min-width: 34px;
+    font-size: 10.5px;
+  }
+
+  html.platform-android .volumebar {
+    display: none;
+  }
+
+  html.platform-android .transport {
+    gap: 6px;
+  }
+
+  /* Docked panels turn into full-width sheets above the player. */
+  html.platform-android .queue,
+  html.platform-android .lyricsdock {
+    position: fixed;
+    inset: 0 0 auto 0;
+    top: calc(var(--titlebar-h) + 48px);
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    z-index: 60;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  html.platform-android .playlist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  html.platform-android .shelf__row {
+    gap: 10px;
+  }
+}
