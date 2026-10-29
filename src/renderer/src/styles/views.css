@@ -516,6 +516,14 @@
 }
 
 @media (max-width: 900px) {
+  /* The album column is dropped here, so the template must lose it too:
+     a hidden cell leaves its column behind, and the fixed columns then add up
+     to more than the row, squeezing the title to zero width. */
+  .tracklist--cover-album .tracklist__head,
+  .tracklist--cover-album .trackrow {
+    grid-template-columns: 34px 40px minmax(0, 1fr) 62px 74px;
+  }
+
   .tracklist--cover-album .tracklist__head .tracklist__cell--album,
   .tracklist--cover-album .trackrow__album {
     display: none;

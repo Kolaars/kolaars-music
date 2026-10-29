@@ -189,4 +189,25 @@ html.platform-android .page__title {
   html.platform-android .shelf__row {
     gap: 10px;
   }
+
+  /* Phone rows: shrink the number, time and action columns so the title and
+     its badges get most of the width. */
+  html.platform-android .trackrow,
+  html.platform-android .tracklist__head {
+    gap: 8px;
+  }
+
+  html.platform-android .tracklist--cover-album .trackrow,
+  html.platform-android .tracklist--cover-album .tracklist__head,
+  html.platform-android .tracklist--cover .trackrow,
+  html.platform-android .tracklist--cover .tracklist__head {
+    grid-template-columns: 28px 36px minmax(0, 1fr) 42px 54px;
+  }
+
+  html.platform-android .tracklist--album .trackrow,
+  html.platform-android .tracklist--album .tracklist__head,
+  html.platform-android .tracklist--plain .trackrow,
+  html.platform-android .tracklist--plain .tracklist__head {
+    grid-template-columns: 28px minmax(0, 1fr) 42px 54px;
+  }
 }
