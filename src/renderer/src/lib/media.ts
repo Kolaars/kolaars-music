@@ -18,6 +18,8 @@ export interface AudioHints {
 /** The extra method the native shim understands; the DOM element has none. */
 export interface PlatformAudio extends HTMLAudioElement {
   describe?(hints: AudioHints): void
+  /** Releases the native session; the next `play()` reopens the same source. */
+  finish?(): void
 }
 
 let factory: () => PlatformAudio = () => new Audio()
@@ -33,4 +35,9 @@ export function createAudio(): PlatformAudio {
 /** Tells a native player what the notification should say. */
 export function describeAudio(audio: HTMLAudioElement | null, hints: AudioHints): void {
   ;(audio as PlatformAudio | null)?.describe?.(hints)
+}
+
+/** Ends the native session (queue finished); a later play reopens the track. */
+export function finishAudio(audio: HTMLAudioElement | null): void {
+  ;(audio as PlatformAudio | null)?.finish?.()
 }

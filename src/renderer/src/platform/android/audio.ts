@@ -117,6 +117,18 @@ class NativeAudio {
     this.hints = hints
   }
 
+  /**
+   * Closes the native session without forgetting the source: the player bar
+   * keeps showing the finished track, and pressing play reopens it from zero.
+   */
+  finish(): void {
+    this.paused = true
+    this.opened = ''
+    this.opening = null
+    this.position = 0
+    void NativePlayer.stop()
+  }
+
   /** Volume and mute share one native level. */
   get volume(): number {
     return this.level

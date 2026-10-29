@@ -11,7 +11,7 @@ import { makeId } from '@shared/defaults'
 import type { ExternalRef, QueueItem, RepeatMode, Track } from '@shared/types'
 import { errorMessage } from '../lib/api'
 import { isExternalBlocked, playableStartIndex, playableTracks } from '../lib/external'
-import { createAudio, describeAudio } from '../lib/media'
+import { createAudio, describeAudio, finishAudio } from '../lib/media'
 import { registerPlaybackReset, registerQueueForgetter, useApp } from './store'
 
 const TICK_MS = 66 // ~15 fps: plenty for karaoke line highlighting and a seek bar
@@ -525,7 +525,11 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       if (repeat === 'all') index = 0
       else {
         externalController?.pause()
-        el().pause()
+        const element = el()
+        element.pause()
+        // The queue is over: close the native session so the media
+        // notification does not sit there for the rest of the day.
+        finishAudio(element)
         set({ playing: false, position: get().duration })
         return
       }

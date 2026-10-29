@@ -25,6 +25,14 @@ lerna-debug.log*
 .env.local
 .env.*.local
 
+# Android signing material (never commit keys or their passwords)
+*.jks
+*.keystore
+android/keystore.properties
+
+# scratch output (device screenshots, adb dumps)
+.tmp/
+
 # editor / os
 .DS_Store
 Thumbs.db

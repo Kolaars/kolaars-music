@@ -72,38 +72,48 @@ export function SettingsView(): JSX.Element {
         </Field>
       </SectionCard>
 
-      <SectionCard icon="equalizer" title="Воспроизведение" description="Громкость, переходы и уведомления">
-        <Field label="Громкость по умолчанию" hint="Дополнительная коррекция громкости для всех треков">
-          <Range
-            label="Коррекция громкости"
-            min={-12}
-            max={12}
-            step={1}
-            value={settings.volumeTrim}
-            onChange={(value) => void updateSettings({ volumeTrim: value })}
-            format={(value) => `${value > 0 ? '+' : ''}${value} дБ`}
-          />
-        </Field>
+      <SectionCard
+        icon="equalizer"
+        title="Воспроизведение"
+        description={isAndroid ? 'Поведение плеера при запуске' : 'Громкость, переходы и уведомления'}
+      >
+        {/* Loudness trim, crossfade and normalisation exist only in the desktop
+            audio pipeline; on Android they would be switches that do nothing. */}
+        {isAndroid ? null : (
+          <>
+            <Field label="Громкость по умолчанию" hint="Дополнительная коррекция громкости для всех треков">
+              <Range
+                label="Коррекция громкости"
+                min={-12}
+                max={12}
+                step={1}
+                value={settings.volumeTrim}
+                onChange={(value) => void updateSettings({ volumeTrim: value })}
+                format={(value) => `${value > 0 ? '+' : ''}${value} дБ`}
+              />
+            </Field>
 
-        <Field label="Плавный переход" hint="Кроссфейд между треками, в секундах (0 — выключен)">
-          <Range
-            label="Кроссфейд"
-            min={0}
-            max={8}
-            step={0.5}
-            value={settings.crossfade}
-            onChange={(value) => void updateSettings({ crossfade: value })}
-            format={(value) => (value === 0 ? 'выключен' : `${value} с`)}
-          />
-        </Field>
+            <Field label="Плавный переход" hint="Кроссфейд между треками, в секундах (0 — выключен)">
+              <Range
+                label="Кроссфейд"
+                min={0}
+                max={8}
+                step={0.5}
+                value={settings.crossfade}
+                onChange={(value) => void updateSettings({ crossfade: value })}
+                format={(value) => (value === 0 ? 'выключен' : `${value} с`)}
+              />
+            </Field>
 
-        <Field label="Нормализация громкости" hint="Выравнивает громкость между записями разных лет">
-          <Switch
-            label="Нормализация громкости"
-            checked={settings.normalizeLoudness}
-            onChange={(value) => void updateSettings({ normalizeLoudness: value })}
-          />
-        </Field>
+            <Field label="Нормализация громкости" hint="Выравнивает громкость между записями разных лет">
+              <Switch
+                label="Нормализация громкости"
+                checked={settings.normalizeLoudness}
+                onChange={(value) => void updateSettings({ normalizeLoudness: value })}
+              />
+            </Field>
+          </>
+        )}
 
         <Field label="Продолжать с места остановки" hint="Сохранять очередь, трек и позицию между запусками">
           <Switch

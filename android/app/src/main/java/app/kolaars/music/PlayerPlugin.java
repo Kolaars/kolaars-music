@@ -1,10 +1,15 @@
 package app.kolaars.music;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.ComponentName;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
@@ -39,6 +44,9 @@ public class PlayerPlugin extends Plugin {
     private Handler handler;
     private boolean ticking;
     private double lastDuration = 0;
+
+    /** Request code for the POST_NOTIFICATIONS prompt. */
+    private static final int NOTIFICATION_REQUEST = 7041;
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -124,9 +132,30 @@ public class PlayerPlugin extends Plugin {
         if (pending == null) handler.post(this::connect);
     }
 
+    /**
+     * Android 13+ hides the media notification — and with it the lock-screen
+     * controls — until the app is granted POST_NOTIFICATIONS. Asked on the
+     * first play rather than at launch: that is the moment it starts to matter.
+     */
+    private void askForNotifications() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+        Activity activity = getActivity();
+        if (activity == null) return;
+        if (
+            ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return;
+        }
+        ActivityCompat.requestPermissions(
+            activity,
+            new String[] { Manifest.permission.POST_NOTIFICATIONS },
+            NOTIFICATION_REQUEST
+        );
+    }
+
     /** A Media3 failure must reach the UI, not take the process down. */
-    private void runSafely(Runnable action) {
-        try {
+    private void runSafely(Runnable action) {        try {
             action.run();
         } catch (RuntimeException error) {
             JSObject payload = new JSObject();
@@ -231,6 +260,7 @@ public class PlayerPlugin extends Plugin {
 
     @PluginMethod
     public void play(PluginCall call) {
+        askForNotifications();
         withController(() -> {
             // At the end of the queue the track sits on its last frame; a bare
             // `play()` there would flip straight back to "ended" and look like
