@@ -21,7 +21,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { DEFAULT_FORMAT_PRIORITY, formatRank } from '@shared/defaults'
 import { baseName, extensionOf, isAudioFile, isCoverFile, isLyricsFile, songKey } from '@shared/audio-files'
-import { findMoovStart, readAudioMeta, type AudioMeta } from '@shared/audio-tags'
+import { findMoovStart, readAudioMeta, tagSpan, type AudioMeta } from '@shared/audio-tags'
 import { restoreForbiddenCharacters } from '@shared/fileNames'
 import { parseLrc, serializeLrc } from '@shared/lrc'
 import { parseArtistTitle, PLAYLIST_FILE_FORMATS, serializePlaylist } from '@shared/tracklist'
@@ -117,8 +117,8 @@ const GENERIC_COVER_NAMES = new Set(['cover', 'folder', 'front', 'album', 'artwo
 /* Tags                                                                */
 /* ------------------------------------------------------------------ */
 
-/** Enough of a file to hold an ID3/FLAC header or an MP4 `moov` at the front. */
-const META_HEAD_BYTES = 2 * 1024 * 1024
+/** Enough to recognise a container before asking for the rest of its tags. */
+const META_PROBE_BYTES = 64 * 1024
 const META_TAIL_BYTES = 1024 * 1024
 
 function bytesFromBase64(value: string): Uint8Array {
@@ -163,10 +163,11 @@ async function readSlice(path: string, offset: number, length: number): Promise<
 /**
  * Reads the tags of a copied file.
  *
- * Only a couple of megabytes are fetched — enough for MP3 and FLAC, whose
- * metadata sits at the front. iTunes-style M4A files keep their `moov` after
- * the audio, so when the head has none the tail is scanned for it and just that
- * box is fetched.
+ * The bridge moves base64 across the WebView boundary, so bytes are fetched on
+ * demand: a probe names the container, then just the tag span is read — for MP3
+ * that is the ID3 tag itself, not megabytes of audio. iTunes-style M4A files
+ * keep their `moov` after the audio, so when the head has none the tail is
+ * scanned for it and only that box is fetched.
  */
 /** Containers this reader understands. Others are left to the decoder. */
 const TAGGED_EXTENSIONS = new Set(['.mp3', '.flac', '.m4a', '.m4b', '.mp4', '.alac'])
@@ -174,8 +175,15 @@ const TAGGED_EXTENSIONS = new Set(['.mp3', '.flac', '.m4a', '.m4b', '.mp4', '.al
 async function readTrackMeta(path: string, size: number): Promise<AudioMeta> {
   if (!TAGGED_EXTENSIONS.has(extensionOf(path))) return {}
   const known = size > 0 ? size : 0
-  const head = await readSlice(path, 0, known ? Math.min(known, META_HEAD_BYTES) : META_HEAD_BYTES)
+  const probeLength = known ? Math.min(known, META_PROBE_BYTES) : META_PROBE_BYTES
+  let head = await readSlice(path, 0, probeLength)
   if (!head) return {}
+
+  const span = tagSpan(head)
+  if (span > head.length && (!known || known > head.length)) {
+    const wider = await readSlice(path, 0, known ? Math.min(known, span) : span)
+    if (wider) head = wider
+  }
 
   const isMp4 = head.length > 8 && String.fromCharCode(head[4], head[5], head[6], head[7]) === 'ftyp'
   const meta = readAudioMeta(head, known || head.length)

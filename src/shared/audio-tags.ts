@@ -110,10 +110,13 @@ function id3Text(payload: Uint8Array): string {
   }
 }
 
-/** Splits a v2.4 multi-value frame; older versions use a single value. */
+/**
+ * Splits a text frame into its values. ID3v2.4 separates them with NUL, while
+ * older tags — and most taggers in practice — use a semicolon instead.
+ */
 function id3Values(text: string): string[] {
   return text
-    .split('\u0000')
+    .split(/[\u0000;]/)
     .map((value) => trimNulls(value))
     .filter(Boolean)
 }
@@ -335,7 +338,7 @@ function parseFlac(d: Uint8Array): AudioMeta | null {
     } else if (type === 4) {
       const comments = vorbisComments(d, body)
       meta.title ??= comments.TITLE?.[0]
-      meta.artist ??= (comments.ARTIST ?? comments.ALBUMARTIST)?.[0]
+      meta.artist ??= (comments.ARTIST ?? comments.ALBUMARTIST)?.join(', ')
       meta.album ??= comments.ALBUM?.[0]
       const year = Number.parseInt((comments.DATE ?? [])[0]?.slice(0, 4) ?? '', 10)
       if (Number.isFinite(year) && year > 1000) meta.year = year
@@ -515,6 +518,23 @@ export function readAudioMeta(data: Uint8Array, totalBytes = data?.length ?? 0):
   } catch {
     return {}
   }
+}
+
+/**
+ * How many leading bytes are worth fetching to read a file's tags.
+ *
+ * Covers live at the end of an ID3 tag, so the whole tag plus the first audio
+ * frame is the useful span — usually a couple of hundred kilobytes, not the
+ * megabytes a blind read would take. `0` means the container is unknown.
+ */
+export function tagSpan(head: Uint8Array): number {
+  if (!head || head.length < 10) return 0
+  if (head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) {
+    return Math.min(10 + syncsafe(head, 6) + 64 * 1024, 16 * 1024 * 1024)
+  }
+  if (ascii(head, 0, 4) === 'fLaC') return 1024 * 1024
+  if (ascii(head, 4, 4) === 'ftyp') return 2 * 1024 * 1024
+  return 0
 }
 
 /**

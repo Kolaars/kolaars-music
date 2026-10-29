@@ -54,6 +54,7 @@ if (compiled.status !== 0) {
 
 const { readAudioMeta } = await import(pathToFileURL(path.join(outDir, 'audio-tags.js')).href)
 const { findMoovStart } = await import(pathToFileURL(path.join(outDir, 'audio-tags.js')).href)
+const { tagSpan } = await import(pathToFileURL(path.join(outDir, 'audio-tags.js')).href)
 
 /* ---------------------------------------------------------------- */
 /* Fixtures                                                          */
@@ -92,7 +93,7 @@ function makeMp3() {
   ])
   const frames = Buffer.concat([
     id3TextFrame('TIT2', 'Fine And Dandy'),
-    id3TextFrame('TPE1', 'Art Tatum'),
+    id3TextFrame('TPE1', 'Art Tatum;James;Swift;Tatum'),
     id3TextFrame('TALB', 'Piano Starts Here'),
     id3TextFrame('TDRC', '1949-03-01'),
     id3TextFrame('TCON', '(8)Jazz'),
@@ -231,7 +232,7 @@ console.log('ID3v2.4 (MP3)')
 {
   const meta = readAudioMeta(new Uint8Array(makeMp3()))
   check('title', meta.title === 'Fine And Dandy', JSON.stringify(meta.title))
-  check('artist', meta.artist === 'Art Tatum', JSON.stringify(meta.artist))
+  check('artist', meta.artist === 'Art Tatum, James, Swift, Tatum', JSON.stringify(meta.artist))
   check('album', meta.album === 'Piano Starts Here')
   check('year', meta.year === 1949, String(meta.year))
   check('genre number prefix is dropped', meta.genres?.[0] === 'Jazz', JSON.stringify(meta.genres))
@@ -270,6 +271,16 @@ console.log('MP4 with metadata after the audio')
   const meta = found ? readAudioMeta(new Uint8Array(tail.subarray(found.offset, found.offset + found.size))) : {}
   check('title from the tail', meta.title === 'So What', JSON.stringify(meta.title))
   check('duration from the tail', meta.duration === 330, String(meta.duration))
+}
+
+console.log('How much to fetch')
+{
+  const mp3 = new Uint8Array(makeMp3().subarray(0, 64))
+  const mp3Span = tagSpan(mp3)
+  check('mp3 reads its tag, not the audio', mp3Span > 64 * 1024 && mp3Span < 1024 * 1024, String(mp3Span))
+  check('flac reads a megabyte', tagSpan(new Uint8Array(makeFlac().subarray(0, 64))) === 1024 * 1024)
+  check('mp4 reads two megabytes', tagSpan(new Uint8Array(makeM4a().subarray(0, 64))) === 2 * 1024 * 1024)
+  check('unknown container asks for nothing', tagSpan(new Uint8Array(64).fill(0x5a)) === 0)
 }
 
 console.log('Robustness')
