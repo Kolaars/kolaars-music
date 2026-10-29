@@ -41,6 +41,10 @@ function u32le(d: Uint8Array, o: number): number {
   return (d[o] | (d[o + 1] << 8) | (d[o + 2] << 16) | (d[o + 3] << 24)) >>> 0
 }
 
+function u16le(d: Uint8Array, o: number): number {
+  return ((d[o] | (d[o + 1] << 8)) >>> 0) & 0xffff
+}
+
 function syncsafe(d: Uint8Array, o: number): number {
   return ((d[o] & 0x7f) << 21) | ((d[o + 1] & 0x7f) << 14) | ((d[o + 2] & 0x7f) << 7) | (d[o + 3] & 0x7f)
 }
@@ -491,6 +495,35 @@ function parseMp4(d: Uint8Array): AudioMeta | null {
  * `totalBytes` is the size of the whole file, which lets the MP3 fallback know
  * whether it is looking at all of the audio or only at its beginning.
  */
+/**
+ * RIFF/WAVE carries no tags worth reading on a phone, but its `fmt ` and
+ * `data` chunks give the duration without decoding a single sample:
+ * data bytes ÷ byte rate. Odd-sized chunks are padded to an even boundary.
+ */
+function parseWav(data: Uint8Array, totalBytes: number): AudioMeta {
+  const meta: AudioMeta = {}
+  let byteRate = 0
+  let offset = 12
+  while (offset + 8 <= data.length) {
+    const id = ascii(data, offset, 4)
+    const size = u32le(data, offset + 4)
+    const body = offset + 8
+    if (id === 'fmt ' && body + 16 <= data.length) {
+      const channels = u16le(data, body + 2)
+      const sampleRate = u32le(data, body + 4)
+      const bits = u16le(data, body + 14)
+      byteRate = u32le(data, body + 8) || Math.round((channels * sampleRate * Math.max(8, bits)) / 8)
+    } else if (id === 'data') {
+      const bytes = size > 0 && size !== 0xffffffff ? size : Math.max(0, totalBytes - body)
+      if (byteRate > 0 && bytes > 0) meta.duration = Math.round(bytes / byteRate)
+      break
+    }
+    if (size === 0 || size === 0xffffffff) break
+    offset = body + size + (size % 2)
+  }
+  return meta
+}
+
 export function readAudioMeta(data: Uint8Array, totalBytes = data?.length ?? 0): AudioMeta {
   try {
     if (!data || data.length < 12) return {}
@@ -510,6 +543,10 @@ export function readAudioMeta(data: Uint8Array, totalBytes = data?.length ?? 0):
     const probe = ascii(data, 4, 4)
     if (probe === 'ftyp' || probe === 'moov') {
       return clean(parseMp4(data) ?? {})
+    }
+
+    if (ascii(data, 0, 4) === 'RIFF' && ascii(data, 8, 4) === 'WAVE') {
+      return clean(parseWav(data, totalBytes))
     }
 
     // No container header: maybe a bare MPEG stream.

@@ -44,4 +44,38 @@ export function trackSystemInsets(): void {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) void applyInsets()
   })
+  watchPlayerBar()
+}
+
+/**
+ * Toasts are positioned above the player bar using `--playerbar-h`, which is the
+ * desktop height. On the phone the bar grows with the safe area, so its real
+ * height is published instead of guessing it in CSS.
+ */
+function watchPlayerBar(): void {
+  const root = document.documentElement
+  let attempts = 0
+
+  const publish = (bar: Element): void => {
+    root.style.setProperty(
+      '--playerbar-live-h',
+      `${Math.round(bar.getBoundingClientRect().height)}px`
+    )
+  }
+
+  const attach = (): void => {
+    const bar = document.querySelector('.playerbar')
+    if (!bar) {
+      // React has not mounted the shell yet; try again on the next frames.
+      if (attempts < 40) {
+        attempts += 1
+        setTimeout(attach, 100)
+      }
+      return
+    }
+    publish(bar)
+    new ResizeObserver(() => publish(bar)).observe(bar)
+  }
+
+  attach()
 }

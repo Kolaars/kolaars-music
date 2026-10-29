@@ -214,6 +214,29 @@ function makeM4aMoovLast() {
   return { head: Buffer.concat([ftyp, box('mdat', Buffer.alloc(4096, 0x11))]), moov }
 }
 
+/** 16-bit stereo 44.1 kHz: 176 400 bytes per second of audio. */
+function makeWav(seconds = 3) {
+  const byteRate = 44100 * 2 * 2
+  const dataSize = byteRate * seconds
+  const fmt = Buffer.alloc(24)
+  fmt.write('fmt ', 0, 'latin1')
+  fmt.writeUInt32LE(16, 4)
+  fmt.writeUInt16LE(1, 8)
+  fmt.writeUInt16LE(2, 10)
+  fmt.writeUInt32LE(44100, 12)
+  fmt.writeUInt32LE(byteRate, 16)
+  fmt.writeUInt16LE(4, 20)
+  fmt.writeUInt16LE(16, 22)
+  const dataHead = Buffer.alloc(8)
+  dataHead.write('data', 0, 'latin1')
+  dataHead.writeUInt32LE(dataSize, 4)
+  const header = Buffer.alloc(12)
+  header.write('RIFF', 0, 'latin1')
+  header.writeUInt32LE(4 + fmt.length + 8 + dataSize, 4)
+  header.write('WAVE', 8, 'latin1')
+  return { bytes: Buffer.concat([header, fmt, dataHead, Buffer.alloc(4096, 0x22)]), size: 44 + dataSize }
+}
+
 /* ---------------------------------------------------------------- */
 /* Checks                                                            */
 /* ---------------------------------------------------------------- */
@@ -271,6 +294,17 @@ console.log('MP4 with metadata after the audio')
   const meta = found ? readAudioMeta(new Uint8Array(tail.subarray(found.offset, found.offset + found.size))) : {}
   check('title from the tail', meta.title === 'So What', JSON.stringify(meta.title))
   check('duration from the tail', meta.duration === 330, String(meta.duration))
+}
+
+console.log('WAV')
+{
+  const { bytes, size } = makeWav(3)
+  const head = new Uint8Array(bytes.subarray(0, 64))
+  const meta = readAudioMeta(head, size)
+  check('duration from fmt and data', meta.duration === 3, String(meta.duration))
+  check('no tags to invent', !meta.title && !meta.artist)
+  const unknownSize = readAudioMeta(head, 0)
+  check('header alone still yields a duration', unknownSize.duration === 3, String(unknownSize.duration))
 }
 
 console.log('How much to fetch')

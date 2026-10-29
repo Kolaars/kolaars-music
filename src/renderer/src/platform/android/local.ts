@@ -170,7 +170,7 @@ async function readSlice(path: string, offset: number, length: number): Promise<
  * scanned for it and only that box is fetched.
  */
 /** Containers this reader understands. Others are left to the decoder. */
-const TAGGED_EXTENSIONS = new Set(['.mp3', '.flac', '.m4a', '.m4b', '.mp4', '.alac'])
+const TAGGED_EXTENSIONS = new Set(['.mp3', '.flac', '.m4a', '.m4b', '.mp4', '.alac', '.wav'])
 
 async function readTrackMeta(path: string, size: number): Promise<AudioMeta> {
   if (!TAGGED_EXTENSIONS.has(extensionOf(path))) return {}

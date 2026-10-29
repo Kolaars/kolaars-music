@@ -39,6 +39,16 @@ html.platform-android .app-shell {
   padding-top: max(env(safe-area-inset-top, 0px), var(--android-inset-top, 0px));
 }
 
+/* Panels anchored above the bar: it grows with the safe area on the phone, so
+   use the height the WebView measured instead of the desktop constant. */
+html.platform-android .toasts {
+  bottom: calc(var(--playerbar-live-h, var(--playerbar-h)) + 16px);
+}
+
+html.platform-android .externalplayer {
+  bottom: calc(var(--playerbar-live-h, var(--playerbar-h)) + 12px);
+}
+
 /* The WebView has no window chrome: only the drag strip and titles remain. */
 html.platform-android .titlebar {
   -webkit-app-region: no-drag;
