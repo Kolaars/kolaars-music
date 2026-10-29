@@ -154,7 +154,13 @@ public class PlayerPlugin extends Plugin {
 
         JSObject payload = new JSObject();
         payload.put("state", stateName(state));
-        payload.put("playing", controller.isPlaying());
+        // While a track is rebuffering the player is not "playing" for Media3,
+        // but the user did not pause it: keep the play/pause button honest.
+        payload.put(
+            "playing",
+            controller.isPlaying() ||
+                (controller.getPlayWhenReady() && state == Player.STATE_BUFFERING)
+        );
         payload.put("buffering", state == Player.STATE_BUFFERING);
         payload.put("ended", state == Player.STATE_ENDED);
         payload.put("position", positionSeconds());
@@ -226,6 +232,13 @@ public class PlayerPlugin extends Plugin {
     @PluginMethod
     public void play(PluginCall call) {
         withController(() -> {
+            // At the end of the queue the track sits on its last frame; a bare
+            // `play()` there would flip straight back to "ended" and look like
+            // nothing happened. Restart it instead, which is what a tap on the
+            // notification's play button means.
+            if (controller.getPlaybackState() == Player.STATE_ENDED) {
+                controller.seekTo(0);
+            }
             controller.setPlayWhenReady(true);
             controller.play();
         });
