@@ -256,4 +256,16 @@ html.platform-android .modal {
     gap: 5px;
     font-size: 12.5px;
   }
+
+  /* Form rows: a label and its control no longer sit side by side on a phone,
+     and squeezing them turns the label into a one-word-per-line column. */
+  html.platform-android .field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  html.platform-android .field__control {
+    justify-content: flex-start;
+  }
 }
