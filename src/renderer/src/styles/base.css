@@ -916,12 +916,20 @@ kbd {
 }
 
 .modal {
+  /* The shell opens dialogs with a fixed pixel width (the lyrics workshop asks
+     for 860). On anything narrower than that the grid track grows with the
+     panel and `max-width: 100%` starts measuring that grown track, so the
+     dialog is clipped at the right edge. Keep the padding in variables and
+     clamp against the viewport instead. */
+  --modal-pad: 32px;
+  --modal-pad-t: var(--modal-pad);
+  --modal-pad-b: var(--modal-pad);
   position: fixed;
   inset: 0;
   z-index: 120;
   display: grid;
   place-items: center;
-  padding: 32px;
+  padding: var(--modal-pad-t) var(--modal-pad) var(--modal-pad-b);
 }
 
 .modal__backdrop {
@@ -935,8 +943,9 @@ kbd {
   position: relative;
   display: flex;
   flex-direction: column;
-  max-width: 100%;
-  max-height: 100%;
+  max-width: calc(100vw - 2 * var(--modal-pad, 32px));
+  max-height: calc(100vh - var(--modal-pad-t, 32px) - var(--modal-pad-b, 32px));
+  max-height: calc(100dvh - var(--modal-pad-t, 32px) - var(--modal-pad-b, 32px));
   border-radius: var(--r-lg);
   border: 1px solid var(--line);
   background: var(--bg-1);

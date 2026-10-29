@@ -77,6 +77,14 @@ html.platform-android .page__title {
   font-size: 20px;
 }
 
+/* Dialogs: keep them inside the viewport and clear of the status and
+   navigation bars. The desktop 32px frame is too generous on a phone. */
+html.platform-android .modal {
+  --modal-pad: 12px;
+  --modal-pad-t: calc(12px + max(env(safe-area-inset-top, 0px), var(--android-inset-top, 0px)));
+  --modal-pad-b: calc(12px + max(env(safe-area-inset-bottom, 0px), var(--android-inset-bottom, 0px)));
+}
+
 /* ---------- Narrow screens: navigation becomes a horizontal strip ---------- */
 
 @media (max-width: 860px) {
@@ -225,5 +233,27 @@ html.platform-android .page__title {
   html.platform-android .tracklist--plain .trackrow,
   html.platform-android .tracklist--plain .tracklist__head {
     grid-template-columns: 28px minmax(0, 1fr) 42px 54px;
+  }
+
+  /* Dialog tabs: three labels are wider than a phone, so they shrink and, if
+     they still do not fit, scroll instead of being clipped by the panel. */
+  html.platform-android .modal .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  html.platform-android .modal .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  html.platform-android .modal .tabs__item {
+    flex: 0 0 auto;
+    padding: 0 7px;
+    gap: 5px;
+    font-size: 12.5px;
   }
 }
