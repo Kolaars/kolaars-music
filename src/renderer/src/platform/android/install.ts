@@ -10,10 +10,12 @@ import { StatusBar, Style } from '@capacitor/status-bar'
 import { App } from '@capacitor/app'
 import { createAndroidApi } from './index'
 import { installHttpTransport } from './http'
+import { trackSystemInsets } from './insets'
 import { installLifecycleFlush } from './storage'
 
 installHttpTransport()
 installLifecycleFlush()
+trackSystemInsets()
 
 window.kolaars = createAndroidApi()
 

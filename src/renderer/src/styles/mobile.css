@@ -33,8 +33,10 @@ html.platform-android .app-shell {
   height: 100dvh;
   box-sizing: border-box;
   /* Android 15 draws edge-to-edge even without asking; keep the title bar clear
-     of the status bar. The value is 0 when the system already insets the view. */
-  padding-top: env(safe-area-inset-top, 0px);
+     of the status bar. The value is 0 when the system already insets the view.
+     `--android-inset-*` comes from the native SystemUi plugin: some ROMs report
+     no bottom inset through the WebView while the navigation bar is on screen. */
+  padding-top: max(env(safe-area-inset-top, 0px), var(--android-inset-top, 0px));
 }
 
 /* The WebView has no window chrome: only the drag strip and titles remain. */
@@ -134,7 +136,10 @@ html.platform-android .page__title {
       'now right'
       'center center';
     gap: 2px 8px;
-    padding: 7px 10px calc(7px + env(safe-area-inset-bottom, 0px));
+    /* The seek row is the last thing on the page, so it has to clear the
+       navigation bar itself. */
+    padding: 7px 10px
+      calc(7px + max(env(safe-area-inset-bottom, 0px), var(--android-inset-bottom, 0px)));
   }
 
   html.platform-android .playerbar__now {
@@ -177,6 +182,7 @@ html.platform-android .page__title {
     max-width: none;
     z-index: 60;
     border-left: 0;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--android-inset-bottom, 0px));
   }
 }
 

@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
         // Local plugins are registered before the bridge starts, otherwise the
         // WebView cannot see them.
         registerPlugin(LocalFilesPlugin.class);
+        registerPlugin(SystemUiPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
