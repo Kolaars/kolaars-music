@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+// Release signing lives outside the repository: `android/keystore.properties`
+// points at the keystore and is git-ignored. Without it the release build is
+// unsigned rather than failing, so a fresh checkout can still compile.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+def hasSigningKey = keystoreProperties['storeFile'] != null
+
 android {
     namespace = "app.kolaars.music"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +26,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasSigningKey) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            // Kept unminified for the first release: Capacitor calls plugin
+            // methods by reflection, and a wrong keep rule would break every
+            // plugin at runtime rather than at build time.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasSigningKey) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
