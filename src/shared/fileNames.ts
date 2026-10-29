@@ -93,3 +93,23 @@ export function restoreForbiddenCharacters(value: string): string {
 
   return out
 }
+
+/**
+ * A short label for a picker handle.
+ *
+ * On Android the user picks `content://` documents and folders, so the tail of
+ * the string is a provider id ("audio%3A1234"), not a file name. The toast that
+ * announces an import should still read like a file name.
+ */
+export function handleLabel(handle: string): string {
+  const value = String(handle ?? '')
+  if (!value) return 'файлы'
+  if (/\/tree\//i.test(value)) return 'папка'
+  if (/^content:\/\//i.test(value)) return 'выбранные файлы'
+  const tail = value.split(/[\\/]/).filter(Boolean).pop() ?? value
+  try {
+    return decodeURIComponent(tail)
+  } catch {
+    return tail
+  }
+}

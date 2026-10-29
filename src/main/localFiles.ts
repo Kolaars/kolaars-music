@@ -25,32 +25,13 @@ import { allowMediaPath, encodeMediaUrl } from './media'
 import { coversDir, loadDb, userDataDir } from './db'
 import { findSidecarCover } from './sidecarCover'
 import { DEFAULT_FORMAT_PRIORITY, formatRank } from '@shared/defaults'
+import { AUDIO_EXTENSIONS, isAudioFile, songKey } from '@shared/audio-files'
 import { restoreForbiddenCharacters } from '@shared/fileNames'
 import { parseLrc } from '@shared/lrc'
 import { parseArtistTitle } from '@shared/tracklist'
 import type { Lyrics, Track } from '@shared/types'
 
-export const AUDIO_EXTENSIONS = new Set([
-  '.mp3',
-  '.m4a',
-  '.m4b',
-  '.aac',
-  '.flac',
-  '.ogg',
-  '.oga',
-  '.opus',
-  '.wav',
-  '.aiff',
-  '.aif',
-  '.wma',
-  '.ape',
-  '.mpc',
-  '.wv'
-])
-
-export function isAudioFile(filePath: string): boolean {
-  return AUDIO_EXTENSIONS.has(path.extname(filePath).toLowerCase())
-}
+export { AUDIO_EXTENSIONS, isAudioFile }
 
 export interface ImportOutcome {
   tracks: Track[]
@@ -66,9 +47,6 @@ export interface ImportOutcome {
  * Downloaders write every format of a track under one name and differ only in
  * the extension, so this is what survives switching formats.
  */
-function songKey(filePath: string): string {
-  return path.basename(filePath, path.extname(filePath)).toLowerCase()
-}
 
 function localTrackId(filePath: string): string {
   const hash = crypto.createHash('sha1').update(filePath.toLowerCase()).digest('hex')

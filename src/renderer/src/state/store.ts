@@ -8,6 +8,7 @@
 
 import { create } from 'zustand'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
+import { handleLabel } from '@shared/fileNames'
 import { parseTrackList, type ImportListOutcome, type PlaylistFileFormat } from '@shared/tracklist'
 import type { Playlist, Profile, Settings, Track } from '@shared/types'
 import { api, errorMessage } from '../lib/api'
@@ -773,7 +774,7 @@ async function runImport(
   set: (partial: Partial<AppState>) => void,
   get: () => AppState
 ): Promise<void> {
-  get().toast(`Импорт: ${paths.length > 1 ? 'папка' : paths[0].split(/[\\/]/).pop()}`, 'info')
+  get().toast(`Импорт: ${paths.length > 1 ? 'папка' : handleLabel(paths[0])}`, 'info')
   try {
     const outcome = await api.local.importPaths(paths)
     set({ importProgress: null })

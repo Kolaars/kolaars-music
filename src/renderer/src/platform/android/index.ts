@@ -63,6 +63,16 @@ import type {
   SourcesStatus,
   Track
 } from '@shared/types'
+import {
+  deleteCopiedFile,
+  exportLyrics,
+  exportPlaylist,
+  importHandles,
+  importLyrics,
+  pickFiles,
+  pickFolder,
+  pickTextFile
+} from './local'
 import { SEED_COUNT, SEED_TRACKS, shelfOf } from './seed'
 import * as store from './storage'
 
@@ -441,8 +451,11 @@ export function createAndroidApi(): KolaarsApi {
           db.tracks[id] = next
           return next
         }),
-      removeTrack: (id: string) =>
-        store.updateDb((db) => {
+      removeTrack: async (id: string) => {
+        const before = await store.loadDb()
+        const local = before.tracks[id]
+        const filePath = local?.source === 'local' ? local.filePath ?? null : null
+        const existed = await store.updateDb((db) => {
           const existed = Boolean(db.tracks[id])
           delete db.tracks[id]
           delete db.lyrics[id]
@@ -468,7 +481,14 @@ export function createAndroidApi(): KolaarsApi {
             }
           }
           return existed
-        }),
+        })
+        // The imported copy belongs to the app: dropping the track must free
+        // the storage too, otherwise `files/music` grows forever.
+        if (existed && filePath) {
+          await deleteCopiedFile(filePath)
+        }
+        return existed
+      },
       toggleFavorite: (trackId: string) =>
         store.updateDb((db) => {
           const set = new Set(db.favorites)
@@ -556,12 +576,19 @@ export function createAndroidApi(): KolaarsApi {
           playlist.updatedAt = Date.now()
           return playlist
         }),
-      exportFile: async (_id: string, _format: PlaylistFileFormat) =>
-        notYet('Экспорт плейлистов')
+      exportFile: async (id: string, format: PlaylistFileFormat) => {
+        const db = await store.loadDb()
+        const playlist = db.playlists.find((item) => item.id === id)
+        if (!playlist) return null
+        const tracks = playlist.trackIds
+          .map((trackId) => db.tracks[trackId])
+          .filter((track): track is Track => Boolean(track))
+        return exportPlaylist(playlist, tracks, format)
+      }
     },
 
     tracklist: {
-      pickFile: async () => notYet('Выбор файла со списком'),
+      pickFile: pickTextFile,
       run: runTrackList
     },
 
@@ -615,8 +642,8 @@ export function createAndroidApi(): KolaarsApi {
         const candidate = await wikisourceFetch(title)
         return candidate ? { ...candidate, trackId } : null
       },
-      importLrc: async () => notYet('Импорт .lrc'),
-      exportLrc: async () => notYet('Экспорт .lrc'),
+      importLrc: (track: Track) => importLyrics(track),
+      exportLrc: (track: Track, lyrics: Lyrics) => exportLyrics(track, lyrics),
       draftTimings: async (plain: string, duration: number) => distributeTimings(plain, duration)
     },
 
@@ -663,10 +690,11 @@ export function createAndroidApi(): KolaarsApi {
     },
 
     local: {
-      pickFiles: async () => notYet('Импорт локальных файлов'),
-      pickFolder: async () => notYet('Импорт папки'),
+      pickFiles,
+      pickFolder,
       pickDownloadDir: async () => notYet('Выбор папки загрузок'),
-      importPaths: async (_paths: string[]) => notYet('Импорт локальных файлов'),
+      importPaths: (paths: string[]) =>
+        importHandles(paths, (done, total, current) => emitImport({ done, total, current })),
       reveal: async () => false
     },
 
