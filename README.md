@@ -17,6 +17,10 @@ Kolaars Music — настольное приложение-музыкальны
 
 Новости, анонсы выпусков и обсуждение — в [Telegram-канале](https://t.me/kolaars_music).
 
+> **Android.** Приложение работает и на телефоне: каталог Internet Archive и локальные
+> файлы, фон и медиа-уведомление. APK — в [выпуске android-1.3.2](https://github.com/Kolaars/kolaars-music/releases/tag/android-1.3.2),
+> подробности порта — в [docs/android.md](docs/android.md).
+
 ---
 
 ## Содержание
