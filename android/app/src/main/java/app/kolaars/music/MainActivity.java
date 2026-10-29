@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // WebView cannot see them.
         registerPlugin(LocalFilesPlugin.class);
         registerPlugin(SystemUiPlugin.class);
+        registerPlugin(PlayerPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

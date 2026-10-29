@@ -11,6 +11,7 @@ import { makeId } from '@shared/defaults'
 import type { ExternalRef, QueueItem, RepeatMode, Track } from '@shared/types'
 import { errorMessage } from '../lib/api'
 import { isExternalBlocked, playableStartIndex, playableTracks } from '../lib/external'
+import { createAudio, describeAudio } from '../lib/media'
 import { registerPlaybackReset, registerQueueForgetter, useApp } from './store'
 
 const TICK_MS = 66 // ~15 fps: plenty for karaoke line highlighting and a seek bar
@@ -114,7 +115,7 @@ let unshuffled: QueueItem[] | null = null
 
 function el(): HTMLAudioElement {
   if (audio) return audio
-  const element = new Audio()
+  const element = createAudio()
   element.preload = 'auto'
   element.autoplay = false
 
@@ -361,6 +362,12 @@ async function loadCurrent(autoplay: boolean): Promise<void> {
 
   const element = el()
   if (element.src !== track.streamUrl) {
+    describeAudio(element, {
+      title: track.title,
+      artist: track.artist,
+      album: track.album ?? undefined,
+      artwork: track.artwork ?? undefined
+    })
     element.src = track.streamUrl
   }
   if (track.duration) usePlayer.setState({ duration: track.duration })
@@ -858,6 +865,12 @@ export function restoreSession(session: {
     }
 
     if (!track.streamUrl) return
+    describeAudio(element, {
+      title: track.title,
+      artist: track.artist,
+      album: track.album ?? undefined,
+      artwork: track.artwork ?? undefined
+    })
     element.src = track.streamUrl
     const restore = (): void => {
       if (usePlayer.getState().currentId !== trackId) return

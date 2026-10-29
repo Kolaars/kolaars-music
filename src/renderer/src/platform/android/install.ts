@@ -8,13 +8,16 @@
 
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { App } from '@capacitor/app'
+import { createNativeAudio } from './audio'
 import { createAndroidApi } from './index'
 import { installHttpTransport } from './http'
 import { trackSystemInsets } from './insets'
 import { installLifecycleFlush } from './storage'
+import { setAudioFactory } from '../../lib/media'
 
 installHttpTransport()
 installLifecycleFlush()
+setAudioFactory(createNativeAudio)
 trackSystemInsets()
 
 window.kolaars = createAndroidApi()
