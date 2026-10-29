@@ -18,10 +18,21 @@ $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { 'E:\Android\sdk' }
 $adb = Join-Path $sdk 'platform-tools/adb.exe'
 $pkg = 'app.kolaars.music'
 
-$appPid = (& $adb shell pidof $pkg | Out-String).Trim()
+# Prefer the Wi-Fi device: the USB cable on this phone drops mid-session.
+$serial = $env:ANDROID_SERIAL
+if (-not $serial) {
+  $attached = (& $adb devices) |
+    Where-Object { $_ -match '^\S+\s+device$' } |
+    ForEach-Object { ($_ -split '\s+')[0] }
+  $serial = ($attached | Where-Object { $_ -match ':\d+$' } | Select-Object -First 1)
+  if (-not $serial) { $serial = $attached | Select-Object -First 1 }
+}
+if (-not $serial) { throw 'Телефон не подключён ни по USB, ни по Wi-Fi.' }
+
+$appPid = (& $adb -s $serial shell pidof $pkg | Out-String).Trim()
 if (-not $appPid) { throw "$pkg is not running. Start it on the phone first." }
 
-& $adb forward "tcp:$Port" "localabstract:webview_devtools_remote_$appPid" | Out-Null
+& $adb -s $serial forward "tcp:$Port" "localabstract:webview_devtools_remote_$appPid" | Out-Null
 
 $targets = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/json/list" -TimeoutSec 10
 $target = $targets | Where-Object { $_.type -eq 'page' } | Select-Object -First 1

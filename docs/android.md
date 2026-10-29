@@ -120,6 +120,32 @@ npm run mobile:apk       # gradlew assembleDebug
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+MIUI не даёт ставить APK по `adb install` (`INSTALL_FAILED_USER_RESTRICTED`),
+поэтому сборку кладём в «Загрузки» и устанавливаем вручную:
+
+```
+adb push android/app/build/outputs/apk/debug/app-debug.apk /sdcard/Download/KolaarsMusic-1.3.2.apk
+```
+
+Отладка идёт по Wi-Fi, чтобы обрыв кабеля не рвал сессию. Один раз после
+перезагрузки телефона нужен USB — скрипт сам переведёт adb в сетевой режим,
+подключится и покажет установленную версию:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts/android-wifi.ps1
+```
+
+Страница WebView инспектируется через Chrome DevTools Protocol, без эмулятора:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts/android-eval.ps1 -Expression "document.title"
+powershell -ExecutionPolicy Bypass -File scripts/android-logs.ps1 -Seconds 15
+powershell -ExecutionPolicy Bypass -File scripts/android-logs.ps1 -Seconds 20 -Reload
+```
+
+Если экран телефона погас, WebView душит таймеры и `await`-выражения в
+`android-eval.ps1` зависают — тестировать нужно с включённым экраном.
+
 `npm run mobile:build` собирает `src/renderer/index.mobile.html` через
 `vite.mobile.config.ts` и переименовывает результат в `index.html`, который
 ожидает Capacitor. Десктопный `index.html` при этом не трогается.
@@ -149,7 +175,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-android-assets.ps1
 - [x] Иконки и сплэши Android из `resources/icon.png`.
 - [x] В навигации Android скрыты «Сокращения», «Загрузки» и «Источники»: две
       последние появятся на этапах 1–2, клавиатуры на телефоне нет.
-- [ ] Сборка debug APK и первый запуск на устройстве.
+- [x] Сборка debug APK и первый запуск на устройстве (Redmi 9, Android 10).
 - [ ] Этап 1: SAF, локальные файлы, `.lrc` рядом, экспорт плейлистов.
 - [ ] Этап 2: Media3 + foreground service, офлайн-загрузки, ключи источников.
 - [ ] Этап 3: полировка вёрстки, подпись release, публикация.
