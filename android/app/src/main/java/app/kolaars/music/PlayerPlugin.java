@@ -77,7 +77,7 @@ public class PlayerPlugin extends Plugin {
     @Override
     public void load() {
         handler = new Handler(Looper.getMainLooper());
-        connect();
+        handler.post(this::connect);
     }
 
     /* ------------------------------------------------------------------ */
@@ -102,7 +102,7 @@ public class PlayerPlugin extends Plugin {
                 }
                 controller.addListener(listener);
                 while (!queued.isEmpty()) {
-                    queued.poll().run();
+                    runSafely(queued.poll());
                 }
                 emitState();
             },
@@ -110,14 +110,29 @@ public class PlayerPlugin extends Plugin {
         );
     }
 
-    /** Runs the action now, or as soon as the controller connects. */
+    /**
+     * Runs the action on the main thread, now or as soon as the controller
+     * connects: Capacitor calls plugin methods on a background thread, and
+     * Media3 refuses to be touched from anywhere but the application thread.
+     */
     private void withController(Runnable action) {
         if (controller != null) {
-            action.run();
+            handler.post(() -> runSafely(action));
             return;
         }
         queued.add(action);
-        if (pending == null) connect();
+        if (pending == null) handler.post(this::connect);
+    }
+
+    /** A Media3 failure must reach the UI, not take the process down. */
+    private void runSafely(Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException error) {
+            JSObject payload = new JSObject();
+            payload.put("error", String.valueOf(error.getMessage()));
+            notifyListeners("state", payload);
+        }
     }
 
     private double positionSeconds() {
