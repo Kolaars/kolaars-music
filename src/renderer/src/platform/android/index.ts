@@ -69,6 +69,7 @@ import {
   exportPlaylist,
   importHandles,
   importLyrics,
+  localArtworkPath,
   pickFiles,
   pickFolder,
   pickTextFile
@@ -455,12 +456,16 @@ export function createAndroidApi(): KolaarsApi {
         const before = await store.loadDb()
         const local = before.tracks[id]
         const filePath = local?.source === 'local' ? local.filePath ?? null : null
+        const coverPath = localArtworkPath(local?.artwork ?? null)
         const existed = await store.updateDb((db) => {
           const existed = Boolean(db.tracks[id])
           delete db.tracks[id]
           delete db.lyrics[id]
           db.favorites = db.favorites.filter((favorite) => favorite !== id)
           db.history = db.history.filter((item) => item.trackId !== id)
+          if (filePath) {
+            db.importedPaths = db.importedPaths.filter((path) => path !== filePath)
+          }
           for (const playlist of db.playlists) {
             playlist.trackIds = playlist.trackIds.filter((trackId) => trackId !== id)
           }
@@ -486,6 +491,9 @@ export function createAndroidApi(): KolaarsApi {
         // the storage too, otherwise `files/music` grows forever.
         if (existed && filePath) {
           await deleteCopiedFile(filePath)
+        }
+        if (existed && coverPath) {
+          await deleteCopiedFile(coverPath)
         }
         return existed
       },

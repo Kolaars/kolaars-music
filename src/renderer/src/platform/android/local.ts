@@ -18,8 +18,10 @@
  */
 
 import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Directory, Filesystem } from '@capacitor/filesystem'
 import { DEFAULT_FORMAT_PRIORITY, formatRank } from '@shared/defaults'
 import { baseName, extensionOf, isAudioFile, isCoverFile, isLyricsFile, songKey } from '@shared/audio-files'
+import { findMoovStart, readAudioMeta, type AudioMeta } from '@shared/audio-tags'
 import { restoreForbiddenCharacters } from '@shared/fileNames'
 import { parseLrc, serializeLrc } from '@shared/lrc'
 import { parseArtistTitle, PLAYLIST_FILE_FORMATS, serializePlaylist } from '@shared/tracklist'
@@ -110,6 +112,123 @@ function localTrackId(filePath: string): string {
 }
 
 const GENERIC_COVER_NAMES = new Set(['cover', 'folder', 'front', 'album', 'artwork'])
+
+/* ------------------------------------------------------------------ */
+/* Tags                                                                */
+/* ------------------------------------------------------------------ */
+
+/** Enough of a file to hold an ID3/FLAC header or an MP4 `moov` at the front. */
+const META_HEAD_BYTES = 2 * 1024 * 1024
+const META_TAIL_BYTES = 1024 * 1024
+
+function bytesFromBase64(value: string): Uint8Array {
+  const binary = atob(value)
+  const out = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i)
+  return out
+}
+
+function base64FromBytes(bytes: Uint8Array): string {
+  let binary = ''
+  // `String.fromCharCode(...bytes)` blows the stack on a big cover.
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  }
+  return btoa(binary)
+}
+
+/** App-private paths only; the Filesystem plugin resolves them from `Data`. */
+function filesRelative(path: string): string | null {
+  const marker = '/files/'
+  const index = path.indexOf(marker)
+  return index < 0 ? null : path.slice(index + marker.length)
+}
+
+async function readSlice(path: string, offset: number, length: number): Promise<Uint8Array | null> {
+  const relative = filesRelative(path)
+  if (!relative) return null
+  try {
+    const { data } = await Filesystem.readFile({
+      path: relative,
+      directory: Directory.Data,
+      offset,
+      length
+    })
+    return typeof data === 'string' ? bytesFromBase64(data) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Reads the tags of a copied file.
+ *
+ * Only a couple of megabytes are fetched — enough for MP3 and FLAC, whose
+ * metadata sits at the front. iTunes-style M4A files keep their `moov` after
+ * the audio, so when the head has none the tail is scanned for it and just that
+ * box is fetched.
+ */
+/** Containers this reader understands. Others are left to the decoder. */
+const TAGGED_EXTENSIONS = new Set(['.mp3', '.flac', '.m4a', '.m4b', '.mp4', '.alac'])
+
+async function readTrackMeta(path: string, size: number): Promise<AudioMeta> {
+  if (!TAGGED_EXTENSIONS.has(extensionOf(path))) return {}
+  const known = size > 0 ? size : 0
+  const head = await readSlice(path, 0, known ? Math.min(known, META_HEAD_BYTES) : META_HEAD_BYTES)
+  if (!head) return {}
+
+  const isMp4 = head.length > 8 && String.fromCharCode(head[4], head[5], head[6], head[7]) === 'ftyp'
+  const meta = readAudioMeta(head, known || head.length)
+  if (!isMp4 || meta.title || meta.cover || meta.duration) return meta
+  if (known <= head.length) return meta
+
+  const tailStart = Math.max(0, known - META_TAIL_BYTES)
+  const tail = await readSlice(path, tailStart, known - tailStart)
+  if (!tail) return meta
+  const moov = findMoovStart(tail)
+  if (!moov) return meta
+  const box = await readSlice(path, tailStart + moov.offset, moov.size)
+  return box ? readAudioMeta(box, known) : meta
+}
+
+/** Writes embedded cover art into `files/covers`, like the sidecar copy. */
+async function saveEmbeddedCover(
+  musicPath: string,
+  id: string,
+  cover: NonNullable<AudioMeta['cover']>
+): Promise<string | null> {
+  const marker = '/files/'
+  const index = musicPath.indexOf(marker)
+  if (index < 0) return null
+  const root = musicPath.slice(0, index + marker.length)
+  const format = cover.format.includes('png') ? 'png' : cover.format.includes('webp') ? 'webp' : 'jpg'
+  const name = `${id.replace(':', '_')}.${format}`
+  try {
+    await Filesystem.writeFile({
+      path: `covers/${name}`,
+      data: base64FromBytes(cover.data),
+      directory: Directory.Data,
+      recursive: true
+    })
+    return fileUrl(`${root}covers/${name}`)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Tag values win over the file name, because they were written by whoever
+ * mastered the track. Missing fields stay as the name made them.
+ */
+function applyMeta(track: Track, meta: AudioMeta): Track {
+  if (meta.title) track.title = meta.title
+  if (meta.artist) track.artist = meta.artist
+  if (meta.album) track.album = meta.album
+  if (meta.year) track.year = meta.year
+  if (meta.genres?.length) track.genres = meta.genres
+  if (meta.duration && meta.duration > 0) track.duration = meta.duration
+  return track
+}
 
 function pickCover(entries: TreeEntry[], key: string): TreeEntry | null {
   const covers = entries.filter((entry) => isCoverFile(entry.name))
@@ -276,9 +395,14 @@ export async function importHandles(
     } else {
       try {
         const copied = await LocalFiles.copyToMusic({ uri: candidate.uri, name: candidate.name })
+        const id = localTrackId(copied.path)
+        const meta = await readTrackMeta(copied.path, copied.size)
+
         let artwork: string | null = null
-        if (candidate.cover) {
-          const id = localTrackId(copied.path)
+        if (meta.cover) {
+          artwork = await saveEmbeddedCover(copied.path, id, meta.cover)
+        }
+        if (!artwork && candidate.cover) {
           try {
             const cover = await LocalFiles.copyToMusic({
               uri: candidate.cover.uri,
@@ -291,7 +415,7 @@ export async function importHandles(
           }
         }
 
-        const track = buildTrack(copied, artwork)
+        const track = applyMeta(buildTrack(copied, artwork), meta)
         tracks.push(track)
         importedPaths.push(copied.path)
         kept.set(key, copied.path)
@@ -352,6 +476,20 @@ export async function pickTextFile(): Promise<{ path: string; text: string } | n
 /* ------------------------------------------------------------------ */
 /* Export                                                              */
 /* ------------------------------------------------------------------ */
+
+/** Path behind a `_capacitor_file_` URL, so a cover can be deleted with its track. */
+export function localArtworkPath(artwork: string | null): string | null {
+  if (!artwork) return null
+  const marker = '/_capacitor_file_'
+  const index = artwork.indexOf(marker)
+  if (index < 0) return null
+  const tail = artwork.slice(index + marker.length)
+  try {
+    return decodeURIComponent(tail)
+  } catch {
+    return tail
+  }
+}
 
 /** Removes a file the importer copied. */
 export async function deleteCopiedFile(path: string): Promise<void> {
