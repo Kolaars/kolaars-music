@@ -14,6 +14,7 @@
 
 import { fetchJson } from '../http'
 import type { SearchResultPage, SourceSearchQuery, Track } from '@shared/types'
+import { t } from '@shared/i18n'
 
 const API = 'https://www.googleapis.com/youtube/v3'
 
@@ -190,11 +191,11 @@ function friendlyYouTubeError(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error)
   if (/HTTP 400/.test(message)) {
     throw new Error(
-      'YouTube отклонил запрос. Проверьте ключ, что YouTube Data API v3 включён, и параметры поиска.'
+      t('YouTube отклонил запрос. Проверьте ключ, что YouTube Data API v3 включён, и параметры поиска.')
     )
   }
   if (/HTTP 403/.test(message)) {
-    throw new Error('YouTube отклонил запрос: проверьте дневную квоту проекта и ограничения ключа.')
+    throw new Error(t('YouTube отклонил запрос: проверьте дневную квоту проекта и ограничения ключа.'))
   }
   throw error instanceof Error ? error : new Error(message)
 }

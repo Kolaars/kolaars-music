@@ -4,6 +4,7 @@ import type { Track } from '@shared/types'
 import { playableStartIndex, playableTracks } from './external'
 import { usePlayer } from '../state/player'
 import { useApp } from '../state/store'
+import { t } from './i18n'
 
 function live(tracks: Track[]): Track[] {
   const catalog = useApp.getState().catalogIndex
@@ -16,7 +17,7 @@ export function playAll(tracks: Track[], startIndex = 0): void {
   if (playable.length === 0) {
     useApp
       .getState()
-      .toast('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.', 'info')
+      .toast(t('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.'), 'info')
     return
   }
   usePlayer.getState().playTracks(playable, playableStartIndex(source, playable, startIndex))
@@ -28,7 +29,7 @@ export function playRandom(tracks: Track[]): void {
   if (playable.length === 0) {
     useApp
       .getState()
-      .toast('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.', 'info')
+      .toast(t('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.'), 'info')
     return
   }
   playAll(playable, Math.floor(Math.random() * playable.length))
@@ -40,7 +41,7 @@ export function shuffleAll(tracks: Track[]): void {
   if (playable.length === 0) {
     useApp
       .getState()
-      .toast('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.', 'info')
+      .toast(t('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.'), 'info')
     return
   }
   const player = usePlayer.getState()

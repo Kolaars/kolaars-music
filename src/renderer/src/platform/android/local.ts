@@ -29,6 +29,7 @@ import type { ImportOutcome } from '@shared/api'
 import type { Lyrics, Playlist, PersistedDb, Track } from '@shared/types'
 import { loadDb, updateDb } from './storage'
 import type { PlaylistFileFormat } from '@shared/tracklist'
+import { t } from '../../lib/i18n'
 
 /* ------------------------------------------------------------------ */
 /* Native bridge                                                       */
@@ -80,7 +81,7 @@ function pluginPresent(): boolean {
 
 function assertPlugin(): void {
   if (!pluginPresent()) {
-    throw new Error('Системный выбор файлов недоступен на этом устройстве')
+    throw new Error(t('Системный выбор файлов недоступен на этом устройстве'))
   }
 }
 
@@ -335,7 +336,7 @@ function buildTrack(copied: { path: string; name: string }, artwork: string | nu
   const track: Track = {
     id,
     title: stem,
-    artist: 'Неизвестный исполнитель',
+    artist: t('Неизвестный исполнитель'),
     album: null,
     year: null,
     genres: [],
@@ -557,7 +558,7 @@ export async function importLyrics(track: Track): Promise<Lyrics | null> {
     synced: parsed.synced.length ? parsed.synced : null,
     meta: parsed.meta,
     origin: 'lrc-file',
-    provider: picked.name ?? 'файл .lrc',
+    provider: picked.name ?? t('файл .lrc'),
     language: null,
     updatedAt: Date.now()
   }

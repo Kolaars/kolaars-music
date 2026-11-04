@@ -19,6 +19,7 @@ import { useApp, type TrackListImportResult } from '../state/store'
 import { Modal } from './Modal'
 import { Icon } from './Icon'
 import { Switch } from './Controls'
+import { t } from '../lib/i18n'
 
 const PREVIEW = 6
 
@@ -59,7 +60,7 @@ export function ImportListDialog(): JSX.Element | null {
       setText(file.text)
       if (!name.trim()) setName(fileStem(file.path))
     } catch (error) {
-      toast(`Не удалось открыть файл: ${errorMessage(error)}`, 'error')
+      toast(t('Не удалось открыть файл: {0}', { 0: errorMessage(error) }), 'error')
     }
   }
 
@@ -78,15 +79,13 @@ export function ImportListDialog(): JSX.Element | null {
     return (
       <Modal
         open
-        title="Импорт завершён"
-        subtitle={`${outcome.stats.total} строк обработано за ${(outcome.durationMs / 1000).toFixed(1)} с`}
+        title={t('Импорт завершён')}
+        subtitle={t('{0} строк обработано за {1} с', { 0: outcome.stats.total, 1: (outcome.durationMs / 1000).toFixed(1) })}
         onClose={close}
         width={640}
         footer={
           <>
-            <button type="button" className="btn btn--ghost" onClick={close}>
-              Закрыть
-            </button>
+            <button type="button" className="btn btn--ghost" onClick={close}>{t('Закрыть')}</button>
             {playlist ? (
               <button
                 type="button"
@@ -97,8 +96,7 @@ export function ImportListDialog(): JSX.Element | null {
                 }}
               >
                 <Icon name="disc" size={16} />
-                Открыть плейлист
-              </button>
+                {t('Открыть плейлист')}</button>
             ) : null}
           </>
         }
@@ -106,38 +104,32 @@ export function ImportListDialog(): JSX.Element | null {
         <ul className="importresult">
           <li className="importresult__row">
             <Icon name="folder" size={16} />
-            <span className="importresult__label">Найдено в библиотеке</span>
+            <span className="importresult__label">{t('Найдено в библиотеке')}</span>
             <span className="importresult__value">{outcome.stats.local}</span>
           </li>
           <li className="importresult__row">
             <Icon name="globe" size={16} />
-            <span className="importresult__label">Найдено в открытом архиве</span>
+            <span className="importresult__label">{t('Найдено в открытом архиве')}</span>
             <span className="importresult__value">{outcome.stats.archive}</span>
           </li>
           <li className="importresult__row">
             <Icon name="lyrics" size={16} />
-            <span className="importresult__label">Тексты сохранены</span>
+            <span className="importresult__label">{t('Тексты сохранены')}</span>
             <span className="importresult__value">{outcome.stats.lyrics}</span>
           </li>
           <li className="importresult__row importresult__row--muted">
             <Icon name="info" size={16} />
-            <span className="importresult__label">Без звука — только название и текст</span>
+            <span className="importresult__label">{t('Без звука — только название и текст')}</span>
             <span className="importresult__value">{outcome.stats.metadata}</span>
           </li>
         </ul>
 
         {outcome.stats.metadata > 0 ? (
-          <p className="page__note">
-            Для этих строк свободного источника звука нет: современная музыка защищена авторским
-            правом, и приложение не качает её из закрытых сервисов. Названия и тексты сохранены —
-            воспроизвести их можно, добавив свои файлы в библиотеку.
-          </p>
+          <p className="page__note">{t('Для этих строк свободного источника звука нет: современная музыка защищена авторским правом, и приложение не качает её из закрытых сервисов. Названия и тексты сохранены — воспроизвести их можно, добавив свои файлы в библиотеку.')}</p>
         ) : null}
 
         {playlist ? (
-          <p className="dialog__text">
-            Создан плейлист «{playlist.name}» — {playlist.trackIds.length} треков.
-          </p>
+          <p className="dialog__text">{t('Создан плейлист «{0}» — {1} треков.', { 0: playlist.name, 1: playlist.trackIds.length })}</p>
         ) : null}
       </Modal>
     )
@@ -148,18 +140,12 @@ export function ImportListDialog(): JSX.Element | null {
     const done = progress?.done ?? 0
     const total = progress?.total ?? entries.length
     return (
-      <Modal open title="Импорт списка треков" onClose={() => {}} width={640}>
-        <p className="dialog__text">
-          Обработано {done} из {total}
-          {progress?.current ? `: ${progress.current}` : '…'}
-        </p>
+      <Modal open title={t('Импорт списка треков')} onClose={() => {}} width={640}>
+        <p className="dialog__text">{t('Обработано {0} из {1}{2}', { 0: done, 1: total, 2: progress?.current ? `: ${progress.current}` : '…' })}</p>
         <div className="progress-line">
           <div className="progress-line__fill" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
         </div>
-        <p className="page__note">
-          Если включён поиск в открытом архиве, каждый трек требует отдельного запроса — это может
-          занять несколько минут.
-        </p>
+        <p className="page__note">{t('Если включён поиск в открытом архиве, каждый трек требует отдельного запроса — это может занять несколько минут.')}</p>
       </Modal>
     )
   }
@@ -168,15 +154,13 @@ export function ImportListDialog(): JSX.Element | null {
   return (
     <Modal
       open
-      title="Импорт списка треков"
-      subtitle="Вставьте список из другого сервиса или откройте файл"
+      title={t('Импорт списка треков')}
+      subtitle={t('Вставьте список из другого сервиса или откройте файл')}
       onClose={close}
       width={760}
       footer={
         <>
-          <button type="button" className="btn btn--ghost" onClick={close}>
-            Отмена
-          </button>
+          <button type="button" className="btn btn--ghost" onClick={close}>{t('Отмена')}</button>
           <button
             type="button"
             className="btn btn--primary"
@@ -184,27 +168,24 @@ export function ImportListDialog(): JSX.Element | null {
             onClick={() => void run()}
           >
             <Icon name="upload" size={16} />
-            Импортировать{entries.length ? ` (${entries.length})` : ''}
+            {t('Импортировать')}{entries.length ? ` (${entries.length})` : ''}
           </button>
         </>
       }
     >
       <div className="dialog__form">
         <div className="dialog__row dialog__row--between">
-          <label className="field__label" htmlFor="tracklist-text">
-            Строки вида «Исполнитель — Название»
-          </label>
+          <label className="field__label" htmlFor="tracklist-text">{t('Строки вида «Исполнитель — Название»')}</label>
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => void pickFile()}>
             <Icon name="folder" size={15} />
-            Открыть файл
-          </button>
+            {t('Открыть файл')}</button>
         </div>
         <textarea
           id="tracklist-text"
           className="input input--area"
           spellCheck={false}
           style={{ minHeight: 200 }}
-          placeholder={'Кино — Звезда по имени Солнце\nАквариум — Город золотой\nМельница — Дорога сна'}
+          placeholder={t('Кино — Звезда по имени Солнце\nАквариум — Город золотой\nМельница — Дорога сна')}
           value={text}
           onChange={(event) => setText(event.target.value)}
         />
@@ -212,10 +193,7 @@ export function ImportListDialog(): JSX.Element | null {
 
       {entries.length > 0 ? (
         <div className="listpreview">
-          <span className="listpreview__count">
-            Распознано строк: {entries.length}
-            {entries.length > PREVIEW ? ` (первые ${PREVIEW})` : ''}
-          </span>
+          <span className="listpreview__count">{t('Распознано строк: {0}{1}', { 0: entries.length, 1: entries.length > PREVIEW ? t(' (первые {0})', { 0: PREVIEW }) : '' })}</span>
           <ul className="listpreview__list">
             {entries.slice(0, PREVIEW).map((entry, index) => (
               <li key={`${entry.raw}-${index}`} className="listpreview__row">
@@ -226,20 +204,16 @@ export function ImportListDialog(): JSX.Element | null {
           </ul>
         </div>
       ) : (
-        <p className="dialog__text">
-          Поддерживаются: обычный текст, CSV с колонками «artist,title», плейлисты M3U/M3U8.
-        </p>
+        <p className="dialog__text">{t('Поддерживаются: обычный текст, CSV с колонками «artist,title», плейлисты M3U/M3U8.')}</p>
       )}
 
       <div className="dialog__form">
-        <label className="field__label" htmlFor="tracklist-name">
-          Название плейлиста
-        </label>
+        <label className="field__label" htmlFor="tracklist-name">{t('Название плейлиста')}</label>
         <input
           id="tracklist-name"
           className="input"
           spellCheck={false}
-          placeholder="Импортированный список"
+          placeholder={t('Импортированный список')}
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
@@ -249,27 +223,19 @@ export function ImportListDialog(): JSX.Element | null {
         <Switch
           checked={fetchLyrics}
           onChange={setFetchLyrics}
-          label="Загрузить тексты из LRCLIB"
+          label={t('Загрузить тексты из LRCLIB')}
         />
-        <span className="field__hint">
-          Открытая база сообщества. Единственный источник текстов в приложении.
-        </span>
+        <span className="field__hint">{t('Открытая база сообщества. Единственный источник текстов в приложении.')}</span>
 
         <Switch
           checked={searchArchive}
           onChange={setSearchArchive}
-          label="Искать звук в открытом архиве (archive.org)"
+          label={t('Искать звук в открытом архиве (archive.org)')}
         />
-        <span className="field__hint">
-          Медленно: для каждой строки идёт отдельный поиск. Находят в основном общественное
-          достояние и свободные лицензии.
-        </span>
+        <span className="field__hint">{t('Медленно: для каждой строки идёт отдельный поиск. Находят в основном общественное достояние и свободные лицензии.')}</span>
       </div>
 
-      <p className="page__note">
-        Аудио берётся только из того, что разрешено: ваши файлы, офлайн-загрузки и открытый архив.
-        Названия и тексты защищённой музыки сохраняются, но звук для них приложение не добывает.
-      </p>
+      <p className="page__note">{t('Аудио берётся только из того, что разрешено: ваши файлы, офлайн-загрузки и открытый архив. Названия и тексты защищённой музыки сохраняются, но звук для них приложение не добывает.')}</p>
     </Modal>
   )
 }

@@ -9,6 +9,7 @@
 
 import { app, BrowserWindow, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import { EV, type MediaCommand } from '@shared/ipc'
+import { t } from '@shared/i18n'
 
 const REPO_URL = 'https://github.com/Kolaars/kolaars-music'
 
@@ -32,137 +33,137 @@ export function buildAppMenu(getWindow: () => BrowserWindow | null): void {
     template.push({
       label: app.name,
       submenu: [
-        { role: 'about', label: 'О Kolaars Music' },
+        { role: 'about', label: t('О Kolaars Music') },
         { type: 'separator' },
-        { role: 'services', label: 'Службы' },
+        { role: 'services', label: t('Службы') },
         { type: 'separator' },
-        { role: 'hide', label: 'Скрыть' },
-        { role: 'hideOthers', label: 'Скрыть остальные' },
-        { role: 'unhide', label: 'Показать все' },
+        { role: 'hide', label: t('Скрыть') },
+        { role: 'hideOthers', label: t('Скрыть остальные') },
+        { role: 'unhide', label: t('Показать все') },
         { type: 'separator' },
-        { role: 'quit', label: 'Завершить' }
+        { role: 'quit', label: t('Завершить') }
       ]
     })
   }
 
   template.push(
     {
-      label: 'Файл',
+      label: t('Файл'),
       submenu: [
         {
-          label: 'Импортировать файлы…',
+          label: t('Импортировать файлы…'),
           accelerator: 'CmdOrCtrl+O',
           click: () => getWindow()?.webContents.send(EV.mediaCommand, 'import-files')
         },
         {
-          label: 'Импортировать папку…',
+          label: t('Импортировать папку…'),
           accelerator: 'CmdOrCtrl+Shift+O',
           click: () => getWindow()?.webContents.send(EV.mediaCommand, 'import-folder')
         },
         {
-          label: 'Импортировать список треков…',
+          label: t('Импортировать список треков…'),
           accelerator: 'CmdOrCtrl+Shift+L',
           click: () => getWindow()?.webContents.send(EV.mediaCommand, 'import-list')
         },
         { type: 'separator' },
         {
-          label: 'Новый плейлист',
+          label: t('Новый плейлист'),
           accelerator: 'CmdOrCtrl+N',
           click: () => getWindow()?.webContents.send(EV.mediaCommand, 'new-playlist')
         },
         { type: 'separator' },
-        isMac ? { role: 'close', label: 'Закрыть окно' } : { role: 'quit', label: 'Выход' }
+        isMac ? { role: 'close', label: t('Закрыть окно') } : { role: 'quit', label: t('Выход') }
       ]
     },
     {
-      label: 'Правка',
+      label: t('Правка'),
       submenu: [
-        { role: 'undo', label: 'Отменить' },
-        { role: 'redo', label: 'Повторить' },
+        { role: 'undo', label: t('Отменить действие') },
+        { role: 'redo', label: t('Повторить действие') },
         { type: 'separator' },
-        { role: 'cut', label: 'Вырезать' },
-        { role: 'copy', label: 'Копировать' },
-        { role: 'paste', label: 'Вставить' },
-        { role: 'selectAll', label: 'Выделить всё' },
+        { role: 'cut', label: t('Вырезать') },
+        { role: 'copy', label: t('Копировать') },
+        { role: 'paste', label: t('Вставить') },
+        { role: 'selectAll', label: t('Выделить всё') },
         { type: 'separator' },
         {
-          label: 'Найти текст песни',
+          label: t('Найти текст песни'),
           accelerator: 'CmdOrCtrl+Shift+L',
           click: command('find-lyrics')
         }
       ]
     },
     {
-      label: 'Воспроизведение',
+      label: t('Воспроизведение'),
       submenu: [
-        { label: 'Воспроизвести / Пауза', click: command('play-pause') },
-        { label: 'Следующий трек', click: command('next') },
-        { label: 'Предыдущий трек', click: command('previous') },
-        { label: 'Остановить', click: command('stop') },
+        { label: t('Воспроизвести / Пауза'), click: command('play-pause') },
+        { label: t('Следующий трек'), click: command('next') },
+        { label: t('Предыдущий трек'), click: command('previous') },
+        { label: t('Остановить'), click: command('stop') },
         { type: 'separator' },
-        { label: 'Случайный порядок', click: command('shuffle') },
-        { label: 'Режим повтора', click: command('repeat') },
+        { label: t('Случайный порядок'), click: command('shuffle') },
+        { label: t('Режим повтора'), click: command('repeat') },
         { type: 'separator' },
-        { label: 'Громче', click: command('volume-up') },
-        { label: 'Тише', click: command('volume-down') },
-        { label: 'Выключить звук', click: command('mute') },
+        { label: t('Громче'), click: command('volume-up') },
+        { label: t('Тише'), click: command('volume-down') },
+        { label: t('Выключить звук'), click: command('mute') },
         { type: 'separator' },
-        { label: 'Показать текст песни', click: command('toggle-lyrics') },
-        { label: 'Показать очередь', click: command('toggle-queue') }
+        { label: t('Показать текст песни'), click: command('toggle-lyrics') },
+        { label: t('Показать очередь'), click: command('toggle-queue') }
       ]
     },
     {
-      label: 'Навигация',
+      label: t('Навигация'),
       submenu: [
-        { label: 'Обзор', accelerator: 'CmdOrCtrl+1', click: navigate('discover') },
-        { label: 'Поиск', accelerator: 'CmdOrCtrl+F', click: navigate('search') },
-        { label: 'Библиотека', accelerator: 'CmdOrCtrl+2', click: navigate('library') },
-        { label: 'Плейлисты', accelerator: 'CmdOrCtrl+3', click: navigate('playlists') },
-        { label: 'Избранное', accelerator: 'CmdOrCtrl+4', click: navigate('favorites') },
-        { label: 'Загрузки', accelerator: 'CmdOrCtrl+5', click: navigate('downloads') },
-        { label: 'Источники', accelerator: 'CmdOrCtrl+6', click: navigate('sources') },
+        { label: t('Обзор'), accelerator: 'CmdOrCtrl+1', click: navigate('discover') },
+        { label: t('Поиск'), accelerator: 'CmdOrCtrl+F', click: navigate('search') },
+        { label: t('Библиотека'), accelerator: 'CmdOrCtrl+2', click: navigate('library') },
+        { label: t('Плейлисты'), accelerator: 'CmdOrCtrl+3', click: navigate('playlists') },
+        { label: t('Избранное'), accelerator: 'CmdOrCtrl+4', click: navigate('favorites') },
+        { label: t('Загрузки'), accelerator: 'CmdOrCtrl+5', click: navigate('downloads') },
+        { label: t('Источники'), accelerator: 'CmdOrCtrl+6', click: navigate('sources') },
         { type: 'separator' },
-        { label: 'Настройки', accelerator: 'CmdOrCtrl+,', click: navigate('settings') }
+        { label: t('Настройки'), accelerator: 'CmdOrCtrl+,', click: navigate('settings') }
       ]
     },
     {
-      label: 'Вид',
+      label: t('Вид'),
       submenu: [
-        { role: 'reload', label: 'Обновить' },
-        { role: 'forceReload', label: 'Обновить без кэша' },
+        { role: 'reload', label: t('Обновить') },
+        { role: 'forceReload', label: t('Обновить без кэша') },
         { type: 'separator' },
-        { role: 'resetZoom', label: 'Исходный масштаб' },
-        { role: 'zoomIn', label: 'Увеличить' },
-        { role: 'zoomOut', label: 'Уменьшить' },
+        { role: 'resetZoom', label: t('Исходный масштаб') },
+        { role: 'zoomIn', label: t('Увеличить') },
+        { role: 'zoomOut', label: t('Уменьшить') },
         { type: 'separator' },
-        { role: 'togglefullscreen', label: 'Полноэкранный режим' },
+        { role: 'togglefullscreen', label: t('Полноэкранный режим') },
         { type: 'separator' },
-        { role: 'toggleDevTools', label: 'Инструменты разработчика' }
+        { role: 'toggleDevTools', label: t('Инструменты разработчика') }
       ]
     },
     {
-      label: 'Справка',
+      label: t('Справка'),
       submenu: [
         {
-          label: 'Клавиатурные сокращения',
+          label: t('Клавиатурные сокращения'),
           click: navigate('shortcuts')
         },
         { type: 'separator' },
         {
-          label: 'Исходный код на GitHub',
+          label: t('Исходный код на GitHub'),
           click: () => void shell.openExternal(REPO_URL)
         },
         {
-          label: 'Internet Archive — источник музыки',
+          label: t('Internet Archive — источник музыки'),
           click: () => void shell.openExternal('https://archive.org/details/georgeblood')
         },
         {
-          label: 'Лицензия и правовая информация',
+          label: t('Лицензия и правовая информация'),
           click: navigate('about')
         },
         { type: 'separator' },
         {
-          label: isMac ? 'O Kolaars Music' : 'О программе',
+          label: isMac ? t('О Kolaars Music') : t('О программе'),
           click: () => getWindow()?.webContents.send(EV.navigate, 'about')
         }
       ]

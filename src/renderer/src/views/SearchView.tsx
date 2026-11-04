@@ -14,6 +14,7 @@ import { Icon } from '../components/Icon'
 import { TrackList } from '../components/TrackList'
 import { EmptyState, TrackListSkeleton } from '../components/Feedback'
 import { trackCountLabel } from '../lib/format'
+import { t } from '../lib/i18n'
 
 type Scope = 'archive' | 'library'
 
@@ -106,8 +107,8 @@ export function SearchView(): JSX.Element {
     <Page className="page--search">
       <PageHeader
         icon="search"
-        title="Поиск"
-        subtitle="Internet Archive и ваш офлайн-каталог. Поддерживаются поля archive.org: collection:, creator:, subject:"
+        title={t('Поиск')}
+        subtitle={t('Internet Archive и ваш офлайн-каталог. Поддерживаются поля archive.org: collection:, creator:, subject:')}
       />
 
       <div className="searchbar">
@@ -117,7 +118,7 @@ export function SearchView(): JSX.Element {
           className="input searchbar__input"
           value={query}
           spellCheck={false}
-          placeholder="Название, исполнитель или запрос archive.org"
+          placeholder={t('Название, исполнитель или запрос archive.org')}
           onChange={(event) => setSearchQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') setPage(1)
@@ -127,7 +128,7 @@ export function SearchView(): JSX.Element {
           <button
             type="button"
             className="iconbtn iconbtn--sm"
-            title="Очистить"
+            title={t('Очистить')}
             onClick={() => setSearchQuery('')}
           >
             <Icon name="close" size={16} />
@@ -151,8 +152,7 @@ export function SearchView(): JSX.Element {
             onClick={() => setScope('library')}
           >
             <Icon name="library" size={15} />
-            Моя библиотека
-          </button>
+            {t('Моя библиотека')}</button>
         </nav>
 
         {scope === 'archive' ? (
@@ -161,9 +161,7 @@ export function SearchView(): JSX.Element {
               type="button"
               className={`chip chip--interactive${collection === null ? ' chip--active' : ''}`}
               onClick={() => setCollection(null)}
-            >
-              Везде
-            </button>
+            >{t('Везде')}</button>
             {[
               { id: 'georgeblood', label: 'Great 78' },
               { id: 'musopen', label: 'Musopen' },
@@ -185,7 +183,7 @@ export function SearchView(): JSX.Element {
       {!searchQuery.trim() ? (
         <>
           <div className="chipsrow">
-            <span className="chipsrow__label">Популярное</span>
+            <span className="chipsrow__label">{t('Популярное')}</span>
             <div className="chipsrow__items">
               {SUGGESTIONS.map((suggestion) => (
                 <button
@@ -201,30 +199,30 @@ export function SearchView(): JSX.Element {
           </div>
           <EmptyState
             icon="search"
-            title="Что будем искать?"
-            text="Введите запрос или воспользуйтесь подсказками. Результаты приходят прямо из открытых API Internet Archive."
+            title={t('Что будем искать?')}
+            text={t('Введите запрос или воспользуйтесь подсказками. Результаты приходят прямо из открытых API Internet Archive.')}
           />
         </>
       ) : error ? (
         <EmptyState
           icon="alert"
-          title="Поиск не удался"
-          text={`${error}. Проверьте подключение к сети — офлайн-каталог доступен в разделе «Обзор».`}
-          action={{ label: 'Повторить', icon: 'refresh', onClick: () => setPage(1) }}
+          title={t('Поиск не удался')}
+          text={t('{0}. Проверьте подключение к сети — офлайн-каталог доступен в разделе «Обзор».', { 0: error })}
+          action={{ label: t('Повторить'), icon: 'refresh', onClick: () => setPage(1) }}
         />
       ) : loading && results.length === 0 ? (
         <TrackListSkeleton rows={8} />
       ) : results.length === 0 ? (
         <EmptyState
           icon="search"
-          title="Ничего не найдено"
-          text="Попробуйте другой запрос или снимите фильтр по коллекции."
+          title={t('Ничего не найдено')}
+          text={t('Попробуйте другой запрос или снимите фильтр по коллекции.')}
         />
       ) : (
         <>
           <div className="results__bar">
             <span className="results__count">
-              {loading ? 'Обновляем…' : `${trackCountLabel(total)} найдено`}
+              {loading ? t('Обновляем…') : t('{0} найдено', { 0: trackCountLabel(total) })}
             </span>
             {scope === 'archive' ? (
               <div className="results__pager">
@@ -235,8 +233,7 @@ export function SearchView(): JSX.Element {
                   onClick={() => setPage((value) => Math.max(1, value - 1))}
                 >
                   <Icon name="chevron-left" size={15} />
-                  Назад
-                </button>
+                  {t('Назад')}</button>
                 <span className="results__page">
                   {page} / {totalPages}
                 </span>
@@ -246,8 +243,7 @@ export function SearchView(): JSX.Element {
                   disabled={!hasMore || loading}
                   onClick={() => setPage((value) => value + 1)}
                 >
-                  Дальше
-                  <Icon name="chevron-right" size={15} />
+                  {t('Дальше')}<Icon name="chevron-right" size={15} />
                 </button>
               </div>
             ) : null}

@@ -1,7 +1,7 @@
 /** Settings — theme, playback, sources and local data. */
 
 import { useEffect, useState, type JSX } from 'react'
-import type { DiscordRpcStatus, Profile, ThemeMode } from '@shared/types'
+import type { DiscordRpcStatus, LanguageSetting, Profile, ThemeMode } from '@shared/types'
 import { DEFAULT_FORMAT_PRIORITY } from '@shared/defaults'
 import { api } from '../lib/api'
 import { useApp } from '../state/store'
@@ -9,6 +9,7 @@ import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { Field, Range, SectionCard, Select, Switch } from '../components/Controls'
 import { ConfirmModal, PromptModal } from '../components/Dialogs'
+import { t } from '../lib/i18n'
 
 const ACCENTS = ['#7c5cff', '#4f8cff', '#22c1a4', '#f4b740', '#ff6b6b', '#ff5ea8', '#8ce563', '#00b8d9']
 
@@ -28,27 +29,27 @@ export function SettingsView(): JSX.Element {
     <Page className="page--settings">
       <PageHeader
         icon="settings"
-        title="Настройки"
-        subtitle="Всё хранится локально, в одном файле kolaars.json в папке данных приложения"
+        title={t('Настройки')}
+        subtitle={t('Всё хранится локально, в одном файле kolaars.json в папке данных приложения')}
       />
 
       <ProfilesCard />
 
-      <SectionCard icon="sparkles" title="Внешний вид" description="Тема оформления и акцентный цвет">
-        <Field label="Тема" hint="Тёмная, светлая или как в системе">
+      <SectionCard icon="sparkles" title={t('Внешний вид')} description={t('Тема оформления и акцентный цвет')}>
+        <Field label={t('Тема')} hint={t('Тёмная, светлая или как в системе')}>
           <Select<ThemeMode>
-            label="Тема"
+            label={t('Тема')}
             value={settings.theme}
             onChange={(value) => void updateSettings({ theme: value })}
             options={[
-              { value: 'dark', label: 'Тёмная' },
-              { value: 'light', label: 'Светлая' },
-              { value: 'system', label: 'Как в системе' }
+              { value: 'dark', label: t('Тёмная') },
+              { value: 'light', label: t('Светлая') },
+              { value: 'system', label: t('Как в системе') }
             ]}
           />
         </Field>
 
-        <Field label="Акцентный цвет" hint="Используется для кнопок, ползунков и активных элементов">
+        <Field label={t('Акцентный цвет')} hint={t('Используется для кнопок, ползунков и активных элементов')}>
           <div className="swatches">
             {ACCENTS.map((color) => (
               <button
@@ -60,7 +61,7 @@ export function SettingsView(): JSX.Element {
                 onClick={() => void updateSettings({ accent: color })}
               />
             ))}
-            <label className="swatch swatch--custom" title="Свой цвет">
+            <label className="swatch swatch--custom" title={t('Свой цвет')}>
               <Icon name="pencil" size={13} />
               <input
                 type="color"
@@ -70,44 +71,60 @@ export function SettingsView(): JSX.Element {
             </label>
           </div>
         </Field>
+
+        <Field
+          label={t('Язык интерфейса')}
+          hint={t('Русский, английский или язык системы. Интерфейс переключается сразу.')}
+        >
+          <Select<LanguageSetting>
+            label={t('Язык интерфейса')}
+            value={settings.language ?? 'ru'}
+            onChange={(value) => void updateSettings({ language: value })}
+            options={[
+              { value: 'ru', label: 'Русский' },
+              { value: 'en', label: 'English' },
+              { value: 'system', label: t('Как в системе') }
+            ]}
+          />
+        </Field>
       </SectionCard>
 
       <SectionCard
         icon="equalizer"
-        title="Воспроизведение"
-        description={isAndroid ? 'Поведение плеера при запуске' : 'Громкость, переходы и уведомления'}
+        title={t('Воспроизведение')}
+        description={isAndroid ? t('Поведение плеера при запуске') : t('Громкость, переходы и уведомления')}
       >
         {/* Loudness trim, crossfade and normalisation exist only in the desktop
             audio pipeline; on Android they would be switches that do nothing. */}
         {isAndroid ? null : (
           <>
-            <Field label="Громкость по умолчанию" hint="Дополнительная коррекция громкости для всех треков">
+            <Field label={t('Громкость по умолчанию')} hint={t('Дополнительная коррекция громкости для всех треков')}>
               <Range
-                label="Коррекция громкости"
+                label={t('Коррекция громкости')}
                 min={-12}
                 max={12}
                 step={1}
                 value={settings.volumeTrim}
                 onChange={(value) => void updateSettings({ volumeTrim: value })}
-                format={(value) => `${value > 0 ? '+' : ''}${value} дБ`}
+                format={(value) => t('{0}{1} дБ', { 0: value > 0 ? '+' : '', 1: value })}
               />
             </Field>
 
-            <Field label="Плавный переход" hint="Кроссфейд между треками, в секундах (0 — выключен)">
+            <Field label={t('Плавный переход')} hint={t('Кроссфейд между треками, в секундах (0 — выключен)')}>
               <Range
-                label="Кроссфейд"
+                label={t('Кроссфейд')}
                 min={0}
                 max={8}
                 step={0.5}
                 value={settings.crossfade}
                 onChange={(value) => void updateSettings({ crossfade: value })}
-                format={(value) => (value === 0 ? 'выключен' : `${value} с`)}
+                format={(value) => (value === 0 ? t('выключен') : t('{0} с', { 0: value }))}
               />
             </Field>
 
-            <Field label="Нормализация громкости" hint="Выравнивает громкость между записями разных лет">
+            <Field label={t('Нормализация громкости')} hint={t('Выравнивает громкость между записями разных лет')}>
               <Switch
-                label="Нормализация громкости"
+                label={t('Нормализация громкости')}
                 checked={settings.normalizeLoudness}
                 onChange={(value) => void updateSettings({ normalizeLoudness: value })}
               />
@@ -115,18 +132,18 @@ export function SettingsView(): JSX.Element {
           </>
         )}
 
-        <Field label="Продолжать с места остановки" hint="Сохранять очередь, трек и позицию между запусками">
+        <Field label={t('Продолжать с места остановки')} hint={t('Сохранять очередь, трек и позицию между запусками')}>
           <Switch
-            label="Продолжать с места остановки"
+            label={t('Продолжать с места остановки')}
             checked={settings.resumeSession}
             onChange={(value) => void updateSettings({ resumeSession: value })}
           />
         </Field>
 
         {isAndroid ? null : (
-          <Field label="Уведомления" hint="Показывать системное уведомление при смене трека">
+          <Field label={t('Уведомления')} hint={t('Показывать системное уведомление при смене трека')}>
             <Switch
-              label="Уведомления"
+              label={t('Уведомления')}
               checked={settings.notifications}
               onChange={(value) => void updateSettings({ notifications: value })}
             />
@@ -136,18 +153,18 @@ export function SettingsView(): JSX.Element {
 
       <SectionCard
         icon="globe"
-        title="Источники"
-        description="Kolaars работает офлайн из встроенного каталога. Онлайн-источники включаются отдельно"
+        title={t('Источники')}
+        description={t('Kolaars работает офлайн из встроенного каталога. Онлайн-источники включаются отдельно')}
       >
-        <Field label="Онлайн-источники" hint="Разрешить обращения к Internet Archive, LRCLIB, Wikisource и подключённым сервисам">
+        <Field label={t('Онлайн-источники')} hint={t('Разрешить обращения к Internet Archive, LRCLIB, Wikisource и подключённым сервисам')}>
           <Switch
-            label="Онлайн-источники"
+            label={t('Онлайн-источники')}
             checked={settings.onlineProviders}
             onChange={(value) => void updateSettings({ onlineProviders: value })}
           />
         </Field>
 
-        <Field label="Internet Archive" hint="Поиск и подборки из коллекций архива">
+        <Field label="Internet Archive" hint={t('Поиск и подборки из коллекций архива')}>
           <Switch
             label="Internet Archive"
             checked={settings.providers.archive}
@@ -155,7 +172,7 @@ export function SettingsView(): JSX.Element {
           />
         </Field>
 
-        <Field label="LRCLIB" hint="Открытая база текстов, в том числе синхронизированных">
+        <Field label="LRCLIB" hint={t('Открытая база текстов, в том числе синхронизированных')}>
           <Switch
             label="LRCLIB"
             checked={settings.providers.lrclib}
@@ -163,7 +180,7 @@ export function SettingsView(): JSX.Element {
           />
         </Field>
 
-        <Field label="Wikisource" hint="Проверенные тексты в общественном достоянии">
+        <Field label="Wikisource" hint={t('Проверенные тексты в общественном достоянии')}>
           <Switch
             label="Wikisource"
             checked={settings.providers.wikisource}
@@ -173,7 +190,7 @@ export function SettingsView(): JSX.Element {
 
         <Field
           label="YouTube"
-          hint="Поиск через официальный API, звук — во встроенном плеере YouTube"
+          hint={t('Поиск через официальный API, звук — во встроенном плеере YouTube')}
         >
           <Switch
             label="YouTube"
@@ -184,7 +201,7 @@ export function SettingsView(): JSX.Element {
 
         <Field
           label="SoundCloud"
-          hint="Поиск через официальный API, звук — в официальном Widget Player"
+          hint={t('Поиск через официальный API, звук — в официальном Widget Player')}
         >
           <Switch
             label="SoundCloud"
@@ -195,9 +212,9 @@ export function SettingsView(): JSX.Element {
           />
         </Field>
 
-        <Field label="Предпочитать lossless" hint="Если у записи есть FLAC/WAV, выбирать его вместо MP3">
+        <Field label={t('Предпочитать lossless')} hint={t('Если у записи есть FLAC/WAV, выбирать его вместо MP3')}>
           <Switch
-            label="Предпочитать lossless"
+            label={t('Предпочитать lossless')}
             checked={settings.preferLossless}
             onChange={(value) => void updateSettings({ preferLossless: value })}
           />
@@ -207,29 +224,26 @@ export function SettingsView(): JSX.Element {
       {isAndroid ? null : <DiscordCard />}
 
       {isAndroid ? null : (
-        <SectionCard icon="folder" title="Файлы" description="Где хранятся офлайн-копии">
-          <Field label="Папка загрузок" hint="Пусто — используется папка данных приложения">
+        <SectionCard icon="folder" title={t('Файлы')} description={t('Где хранятся офлайн-копии')}>
+          <Field label={t('Папка загрузок')} hint={t('Пусто — используется папка данных приложения')}>
             <div className="field__row">
               <span className="field__path" title={settings.downloadDir || appInfo?.downloadsDir}>
-                {settings.downloadDir || appInfo?.downloadsDir || 'по умолчанию'}
+                {settings.downloadDir || appInfo?.downloadsDir || t('по умолчанию')}
               </span>
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => void pickDownloadDir()}>
                 <Icon name="folder" size={15} />
-                Выбрать
-              </button>
+                {t('Выбрать')}</button>
               {settings.downloadDir ? (
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm"
                   onClick={() => void updateSettings({ downloadDir: '' })}
-                >
-                  Сбросить
-                </button>
+                >{t('Сбросить')}</button>
               ) : null}
             </div>
           </Field>
 
-          <Field label="Папка данных" hint="Здесь лежит kolaars.json, обложки из тегов и загрузки по умолчанию">
+          <Field label={t('Папка данных')} hint={t('Здесь лежит kolaars.json, обложки из тегов и загрузки по умолчанию')}>
             <div className="field__row">
               <span className="field__path" title={appInfo?.userData}>
                 {appInfo?.userData ?? '—'}
@@ -241,8 +255,7 @@ export function SettingsView(): JSX.Element {
                 onClick={() => appInfo?.userData && void api.local.reveal(appInfo.userData)}
               >
                 <Icon name="external" size={15} />
-                Открыть
-              </button>
+                {t('Открыть')}</button>
             </div>
           </Field>
         </SectionCard>
@@ -251,19 +264,18 @@ export function SettingsView(): JSX.Element {
       {isAndroid ? null : (
         <SectionCard
           icon="music"
-          title="Формат файлов"
-          description="Какой файл оставить, если одна и та же песня лежит на диске в нескольких форматах"
+          title={t('Формат файлов')}
+          description={t('Какой файл оставить, если одна и та же песня лежит на диске в нескольких форматах')}
         >
           <FormatPriorityList />
         </SectionCard>
       )}
 
-      <SectionCard icon="shield" title="Правовая информация" description="Лицензии, источники и благодарности">
-        <Field label="Код приложения" hint="Kolaars Music распространяется под лицензией MIT">
+      <SectionCard icon="shield" title={t('Правовая информация')} description={t('Лицензии, источники и благодарности')}>
+        <Field label={t('Код приложения')} hint={t('Kolaars Music распространяется под лицензией MIT')}>
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRoute({ name: 'about' })}>
             <Icon name="info" size={15} />
-            Открыть раздел «О программе»
-          </button>
+            {t('Открыть раздел «О программе»')}</button>
         </Field>
       </SectionCard>
     </Page>
@@ -317,14 +329,14 @@ function DiscordCard(): JSX.Element {
     <SectionCard
       icon="link"
       title="Discord Rich Presence"
-      description="Текущий трек в профиле Discord — по желанию, только на этом компьютере"
+      description={t('Текущий трек в профиле Discord — по желанию, только на этом компьютере')}
     >
       <Field
-        label="Показывать в Discord"
-        hint="Discord должен быть запущен как приложение для Windows. В браузерной версии Discord RPC не работает."
+        label={t('Показывать в Discord')}
+        hint={t('Discord должен быть запущен как приложение для Windows. В браузерной версии Discord RPC не работает.')}
       >
         <Switch
-          label="Показывать в Discord"
+          label={t('Показывать в Discord')}
           checked={settings.discordRpc}
           onChange={(value) => void updateSettings({ discordRpc: value })}
         />
@@ -332,7 +344,7 @@ function DiscordCard(): JSX.Element {
 
       <Field
         label="Application ID"
-        hint="Встроенный идентификатор официального приложения Kolaars Music. Менять не нужно — поле оставлено для сборок с собственным приложением Discord."
+        hint={t('Встроенный идентификатор официального приложения Kolaars Music. Менять не нужно — поле оставлено для сборок с собственным приложением Discord.')}
       >
         <div className="field__row">
           <input
@@ -356,30 +368,21 @@ function DiscordCard(): JSX.Element {
             className="btn btn--ghost btn--sm"
             disabled={!idChanged || !idValid}
             onClick={saveId}
-          >
-            Сохранить
-          </button>
+          >{t('Сохранить')}</button>
         </div>
       </Field>
 
-      <Field label="Состояние" hint={statusMeta.hint}>
+      <Field label={t('Состояние')} hint={statusMeta.hint}>
         <span className={statusMeta.className}>{statusMeta.label}</span>
       </Field>
 
       <p className="page__note discord__note">
-        <span>
-          Application ID официального приложения уже встроен. Кнопка «Скачать» появляется только у
-          открытых записей Internet Archive и ведёт на прямой файл. Для YouTube Music и SoundCloud
-          кнопка открывает страницу сервиса, а локальные файлы остаются без кнопки — Discord не умеет
-          запускать действия внутри плеера.
-        </span>
+        <span>{t('Application ID официального приложения уже встроен. Кнопка «Скачать» появляется только у открытых записей Internet Archive и ведёт на прямой файл. Для YouTube Music и SoundCloud кнопка открывает страницу сервиса, а локальные файлы остаются без кнопки — Discord не умеет запускать действия внутри плеера.')}</span>
         <button
           type="button"
           className="linklike"
           onClick={() => void api.app.openExternal(DISCORD_DEVELOPER_PORTAL)}
-        >
-          Своё приложение
-        </button>
+        >{t('Своё приложение')}</button>
       </p>
     </SectionCard>
   )
@@ -392,58 +395,58 @@ function describeDiscordStatus(
 ): { label: string; className: string; hint: string } {
   if (!enabled) {
     return {
-      label: 'Выключено',
+      label: t('Выключено'),
       className: 'badge',
-      hint: 'Rich Presence выключен — приложение не подключается к Discord.'
+      hint: t('Rich Presence выключен — приложение не подключается к Discord.')
     }
   }
   if (!hasClientId) {
     return {
-      label: 'Нужен Application ID',
+      label: t('Нужен Application ID'),
       className: 'badge badge--accent',
-      hint: 'Вставьте Application ID приложения Discord выше и нажмите «Сохранить».'
+      hint: t('Вставьте Application ID приложения Discord выше и нажмите «Сохранить».')
     }
   }
   if (!status) {
-    return { label: 'Проверяем…', className: 'badge', hint: 'Читаем состояние подключения.' }
+    return { label: t('Проверяем…'), className: 'badge', hint: t('Читаем состояние подключения.') }
   }
 
   switch (status.state) {
     case 'connected':
       return {
-        label: 'Подключено',
+        label: t('Подключено'),
         className: 'badge badge--done',
-        hint: 'Discord запущен и показывает текущий трек.'
+        hint: t('Discord запущен и показывает текущий трек.')
       }
     case 'connecting':
       return {
-        label: 'Подключение…',
+        label: t('Подключение…'),
         className: 'badge badge--accent',
-        hint: 'Ищем локальный клиент Discord.'
+        hint: t('Ищем локальный клиент Discord.')
       }
     case 'missing-client-id':
       return {
-        label: 'Нужен Application ID',
+        label: t('Нужен Application ID'),
         className: 'badge badge--accent',
-        hint: status.error ?? 'Укажите Application ID приложения Discord.'
+        hint: status.error ?? t('Укажите Application ID приложения Discord.')
       }
     case 'error':
       return {
-        label: 'Нет подключения',
+        label: t('Нет подключения'),
         className: 'badge badge--error',
-        hint: status.error ?? 'Discord не запущен или RPC недоступен.'
+        hint: status.error ?? t('Discord не запущен или RPC недоступен.')
       }
     case 'disabled':
       return {
-        label: 'Ожидание…',
+        label: t('Ожидание…'),
         className: 'badge',
-        hint: 'Ждём подтверждения от главного процесса.'
+        hint: t('Ждём подтверждения от главного процесса.')
       }
     default:
       return {
-        label: 'Выключено',
+        label: t('Выключено'),
         className: 'badge',
-        hint: 'Rich Presence выключен.'
+        hint: t('Rich Presence выключен.')
       }
   }
 }
@@ -494,12 +497,12 @@ function FormatPriorityList(): JSX.Element {
         {priority.map((extension, index) => (
           <li key={extension} className="formatlist__row">
             <span className="formatlist__rank">{index + 1}</span>
-            <span className="formatlist__name">{FORMAT_LABELS[extension] ?? extension}</span>
+            <span className="formatlist__name">{t(FORMAT_LABELS[extension] ?? extension)}</span>
             <span className="formatlist__ext">{extension}</span>
             <button
               type="button"
               className="iconbtn iconbtn--sm"
-              title="Выше"
+              title={t('Выше')}
               disabled={index === 0}
               onClick={() => move(index, -1)}
             >
@@ -508,7 +511,7 @@ function FormatPriorityList(): JSX.Element {
             <button
               type="button"
               className="iconbtn iconbtn--sm"
-              title="Ниже"
+              title={t('Ниже')}
               disabled={index === priority.length - 1}
               onClick={() => move(index, 1)}
             >
@@ -525,15 +528,10 @@ function FormatPriorityList(): JSX.Element {
           onClick={() => void updateSettings({ formatPriority: [...DEFAULT_FORMAT_PRIORITY] })}
         >
           <Icon name="refresh" size={15} />
-          Вернуть порядок по умолчанию
-        </button>
+          {t('Вернуть порядок по умолчанию')}</button>
       </div>
 
-      <p className="page__note">
-        При импорте папки на каждую песню остаётся только лучший по этому списку файл: остальные не
-        попадают в библиотеку, но и не удаляются с диска. Уже добавленные треки приложение не
-        подменяет — иначе разъехались бы плейлисты и избранное.
-      </p>
+      <p className="page__note">{t('При импорте папки на каждую песню остаётся только лучший по этому списку файл: остальные не попадают в библиотеку, но и не удаляются с диска. Уже добавленные треки приложение не подменяет — иначе разъехались бы плейлисты и избранное.')}</p>
     </>
   )
 }
@@ -578,8 +576,8 @@ function ProfilesCard(): JSX.Element {
     <>
       <SectionCard
         icon="library"
-        title="Профили"
-        description="Несколько независимых библиотек на одном компьютере — без аккаунтов и без сети"
+        title={t('Профили')}
+        description={t('Несколько независимых библиотек на одном компьютере — без аккаунтов и без сети')}
       >
         <ul className="profilelist">
           {profiles.map((profile) => {
@@ -595,26 +593,24 @@ function ProfilesCard(): JSX.Element {
                 <span className="profilelist__main">
                   <span className="profilelist__name">{profile.name}</span>
                   <span className="profilelist__meta">
-                    {isActive ? 'Активный профиль' : `Создан ${createdLabel(profile.createdAt)}`}
+                    {isActive ? t('Активный профиль') : t('Создан {0}', { 0: createdLabel(profile.createdAt) })}
                   </span>
                 </span>
 
                 {isActive ? (
-                  <span className="badge badge--accent">активен</span>
+                  <span className="badge badge--accent">{t('активен')}</span>
                 ) : (
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm"
                     onClick={() => void switchProfile(profile.id)}
-                  >
-                    Переключить
-                  </button>
+                  >{t('Переключить')}</button>
                 )}
 
                 <button
                   type="button"
                   className="iconbtn iconbtn--sm"
-                  title="Переименовать"
+                  title={t('Переименовать')}
                   onClick={() => setRenaming(profile)}
                 >
                   <Icon name="pencil" size={15} />
@@ -622,7 +618,7 @@ function ProfilesCard(): JSX.Element {
                 <button
                   type="button"
                   className="iconbtn iconbtn--sm"
-                  title={profiles.length <= 1 ? 'Нельзя удалить единственный профиль' : 'Удалить профиль'}
+                  title={profiles.length <= 1 ? t('Нельзя удалить единственный профиль') : t('Удалить профиль')}
                   disabled={profiles.length <= 1}
                   onClick={() => setRemoving(profile)}
                 >
@@ -636,8 +632,7 @@ function ProfilesCard(): JSX.Element {
         <div className="field__row">
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => setCreating(true)}>
             <Icon name="plus" size={15} />
-            Новый профиль
-          </button>
+            {t('Новый профиль')}</button>
           <button
             type="button"
             className="btn btn--ghost btn--sm"
@@ -645,22 +640,18 @@ function ProfilesCard(): JSX.Element {
             onClick={() => appInfo?.userData && void api.local.reveal(appInfo.userData)}
           >
             <Icon name="folder" size={15} />
-            Открыть папку профиля
-          </button>
+            {t('Открыть папку профиля')}</button>
         </div>
 
-        <p className="page__note">
-          Каждый профиль хранит свою библиотеку, плейлисты, избранное, тексты, обложки и загрузки — целиком
-          в отдельной папке. Вход и пароль не нужны: профили живут только на этом компьютере.
-        </p>
+        <p className="page__note">{t('Каждый профиль хранит свою библиотеку, плейлисты, избранное, тексты, обложки и загрузки — целиком в отдельной папке. Вход и пароль не нужны: профили живут только на этом компьютере.')}</p>
       </SectionCard>
 
       <PromptModal
         open={creating}
-        title="Новый профиль"
-        label="Название профиля"
-        placeholder="Например, Рабочая музыка"
-        confirmLabel="Создать"
+        title={t('Новый профиль')}
+        label={t('Название профиля')}
+        placeholder={t('Например, Рабочая музыка')}
+        confirmLabel={t('Создать')}
         onCancel={() => setCreating(false)}
         onConfirm={(value) => {
           setCreating(false)
@@ -670,10 +661,10 @@ function ProfilesCard(): JSX.Element {
 
       <PromptModal
         open={renaming !== null}
-        title="Переименовать профиль"
-        label="Название профиля"
+        title={t('Переименовать профиль')}
+        label={t('Название профиля')}
         initialValue={renaming?.name ?? ''}
-        confirmLabel="Сохранить"
+        confirmLabel={t('Сохранить')}
         onCancel={() => setRenaming(null)}
         onConfirm={(value) => {
           const target = renaming
@@ -684,14 +675,10 @@ function ProfilesCard(): JSX.Element {
 
       <ConfirmModal
         open={removing !== null}
-        title="Удалить профиль?"
-        confirmLabel="Удалить навсегда"
+        title={t('Удалить профиль?')}
+        confirmLabel={t('Удалить навсегда')}
         text={
-          <>
-            Профиль «{removing?.name}» и вся его библиотека будут удалены с диска. Это действие нельзя
-            отменить.
-            {removing?.id === activeProfileId ? ' Вы будете переключены на другой профиль.' : ''}
-          </>
+          <>{t('Профиль «{0}» и вся его библиотека будут удалены с диска. Это действие нельзя отменить. {1}', { 0: removing?.name, 1: removing?.id === activeProfileId ? t(' Вы будете переключены на другой профиль.') : '' })}</>
         }
         onCancel={() => setRemoving(null)}
         onConfirm={() => {
@@ -702,7 +689,7 @@ function ProfilesCard(): JSX.Element {
       />
 
       {active && profiles.length > 1 ? (
-        <p className="page__note">Сейчас используется профиль «{active.name}».</p>
+        <p className="page__note">{t('Сейчас используется профиль «{0}».', { 0: active.name })}</p>
       ) : null}
     </>
   )

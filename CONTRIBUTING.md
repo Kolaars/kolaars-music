@@ -43,7 +43,8 @@ node scripts/smoke.mjs --screenshot=docs/screenshots --keep-open
 - Отступ — два пробела, перевод строки — LF (см. `.editorconfig`).
 - Точки с запятой не ставятся; строки — в одинарных кавычках (стиль всего проекта).
 - Общие модули живут в `src/shared` и не должны зависеть ни от Node, ни от DOM.
-- Тексты интерфейса — только на русском языке, без англоязычных вкраплений.
+- Тексты интерфейса — только через `t('…')`; русская строка служит ключом, английский
+  перевод добавляется в `src/shared/i18n.en.ts`. Новые строки проверяются `npm run test:i18n`.
 - Комментарии объясняют **почему**, а не «что»: код читается, а вот причины решений — нет.
 
 ## Архитектурные правила
@@ -101,7 +102,8 @@ node scripts/build-seed-catalog.mjs --per-shelf 24
 
 Kolaars Music welcomes pull requests: bug fixes, UI work, new shelves and public-domain
 lyrics. Please read the [Code of Conduct](CODE_OF_CONDUCT.md) first, open an issue for large
-changes, and make sure `npm run typecheck` and `npm run smoke` pass before submitting. Follow
-the project's code style (2 spaces, LF, no semicolons, single quotes), keep all user-facing
-strings in Russian, and only contribute music and lyrics that are public domain or Creative
+changes, and make sure `npm run typecheck`, `npm test` and `npm run smoke` pass before
+submitting. Follow the project's code style (2 spaces, LF, no semicolons, single quotes), route
+all user-facing strings through `t('…')`, add English translations to
+`src/shared/i18n.en.ts`, and only contribute music and lyrics that are public domain or Creative
 Commons. Code is contributed under the MIT licence.

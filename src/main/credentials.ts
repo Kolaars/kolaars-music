@@ -14,6 +14,7 @@ import { app, safeStorage } from 'electron'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type { ExternalProvider } from '@shared/types'
+import { t } from '@shared/i18n'
 
 const FILE_NAME = 'sources.json'
 const VERSION = 1
@@ -78,7 +79,7 @@ async function writeFile(next: StoredFile): Promise<void> {
 function encrypt(value: string): string {
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error(
-      'Системное шифрование недоступно — ключ не сохранён. Проверьте настройки входа в систему.'
+      t('Системное шифрование недоступно — ключ не сохранён. Проверьте настройки входа в систему.')
     )
   }
   return safeStorage.encryptString(value).toString('base64')
@@ -103,10 +104,10 @@ export async function getCredential(provider: ExternalProvider): Promise<string 
 
 /** Stores (or replaces) a credential. Empty values are rejected. */
 export async function setCredential(provider: ExternalProvider, rawValue: string): Promise<void> {
-  if (!isProvider(provider)) throw new Error('Неизвестный источник')
+  if (!isProvider(provider)) throw new Error(t('Неизвестный источник'))
   const value = String(rawValue ?? '').trim()
-  if (!value) throw new Error('Ключ не может быть пустым')
-  if (value.length > 512) throw new Error('Ключ слишком длинный')
+  if (!value) throw new Error(t('Ключ не может быть пустым'))
+  if (value.length > 512) throw new Error(t('Ключ слишком длинный'))
 
   await serial(async () => {
     const file = await readFile()
@@ -116,7 +117,7 @@ export async function setCredential(provider: ExternalProvider, rawValue: string
 }
 
 export async function clearCredential(provider: ExternalProvider): Promise<void> {
-  if (!isProvider(provider)) throw new Error('Неизвестный источник')
+  if (!isProvider(provider)) throw new Error(t('Неизвестный источник'))
   await serial(async () => {
     const file = await readFile()
     const entries = { ...file.entries }

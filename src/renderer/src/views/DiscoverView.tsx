@@ -16,6 +16,7 @@ import { Cover } from '../components/Cover'
 import { Icon } from '../components/Icon'
 import { Page, PageHeader } from '../components/Page'
 import { ShelfSkeleton } from '../components/Feedback'
+import { t } from '../lib/i18n'
 
 export function DiscoverView(): JSX.Element {
   const shelves = useApp((state) => state.shelves)
@@ -82,13 +83,9 @@ export function DiscoverView(): JSX.Element {
         <div className="hero__text">
           <span className="hero__eyebrow">
             <Icon name="sparkles" size={14} />
-            Открытая музыка и открытые тексты
-          </span>
-          <h1 className="hero__title">Музыка в общественном достоянии</h1>
-          <p className="hero__lead">
-            Коллекция Kolaars собрана из Internet Archive: шеллачные пластинки Great&nbsp;78, записи Musopen и
-            релизы независимых лейблов под лицензиями Creative&nbsp;Commons. Слушайте бесплатно и легально.
-          </p>
+            {t('Открытая музыка и открытые тексты')}</span>
+          <h1 className="hero__title">{t('Музыка в общественном достоянии')}</h1>
+          <p className="hero__lead">{t('Коллекция Kolaars собрана из Internet Archive: шеллачные пластинки Great 78, записи Musopen и релизы независимых лейблов под лицензиями Creative Commons. Слушайте бесплатно и легально.')}</p>
           <div className="hero__actions">
             <button
               type="button"
@@ -97,29 +94,25 @@ export function DiscoverView(): JSX.Element {
               onClick={() => playRandom(seedTracks)}
             >
               <Icon name="play" size={16} />
-              Включить случайный трек
-            </button>
+              {t('Включить случайный трек')}</button>
             <button type="button" className="btn btn--ghost" onClick={() => setRoute({ name: 'search' })}>
               <Icon name="search" size={16} />
-              Искать в архиве
-            </button>
+              {t('Искать в архиве')}</button>
           </div>
-          <p className="hero__meta">
-            {trackCountLabel(seedTracks.length)} в офлайн-каталоге · {shelves.length} подборок
-          </p>
+          <p className="hero__meta">{t('{0} в офлайн-каталоге · {1} подборок', { 0: trackCountLabel(seedTracks.length), 1: shelves.length })}</p>
         </div>
       </section>
 
       {genres.length > 0 ? (
         <section className="chipsrow">
-          <span className="chipsrow__label">Жанры</span>
+          <span className="chipsrow__label">{t('Жанры')}</span>
           <div className="chipsrow__items">
             {genres.slice(0, 16).map((genre) => (
               <button
                 key={genre.name}
                 type="button"
                 className="chip chip--interactive"
-                title={`${genre.count} записей`}
+                title={t('{0} записей', { 0: genre.count })}
                 onClick={() => jumpToGenre(genre.name)}
               >
                 {genre.name}
@@ -153,12 +146,11 @@ export function DiscoverView(): JSX.Element {
                     onClick={() => playAll(tracks)}
                   >
                     <Icon name="play" size={15} />
-                    Играть
-                  </button>
+                    {t('Играть')}</button>
                   <button
                     type="button"
                     className="iconbtn iconbtn--sm"
-                    title="Перемешать подборку"
+                    title={t('Перемешать подборку')}
                     disabled={tracks.length === 0}
                     onClick={() => shuffleAll(tracks)}
                   >
@@ -188,7 +180,7 @@ export function DiscoverView(): JSX.Element {
                         <button
                           type="button"
                           className="card__play"
-                          title="Воспроизвести"
+                          title={t('Воспроизвести')}
                           onClick={() => playAll(tracks, index)}
                         >
                           <Icon name="play" size={18} />

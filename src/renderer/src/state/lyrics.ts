@@ -11,6 +11,7 @@ import type { LyricLine, Lyrics, LyricsCandidate } from '@shared/types'
 import { api, errorMessage } from '../lib/api'
 import type { BundledSong, WikisourceHit } from '../../../preload/index'
 import { useApp } from './store'
+import { t } from '../lib/i18n'
 
 interface LyricsState {
   trackId: string | null
@@ -64,7 +65,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
       set({ saved: result.saved, bundled: result.bundled, loading: false })
     } catch (error) {
       set({ loading: false })
-      useApp.getState().toast(`Не удалось загрузить текст: ${errorMessage(error)}`, 'error')
+      useApp.getState().toast(t('Не удалось загрузить текст: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -93,11 +94,11 @@ export const useLyrics = create<LyricsState>((set, get) => ({
       if (get().trackId !== track.id) return
       set({ candidates, searching: false })
       if (candidates.length === 0) {
-        useApp.getState().toast('В открытой базе LRCLIB ничего не найдено', 'info')
+        useApp.getState().toast(t('В открытой базе LRCLIB ничего не найдено'), 'info')
       }
     } catch (error) {
       set({ searching: false })
-      useApp.getState().toast(`Ошибка поиска текста: ${errorMessage(error)}`, 'error')
+      useApp.getState().toast(t('Ошибка поиска текста: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -120,7 +121,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
     } catch (error) {
       if (get().lastQuery !== query) return
       set({ sourcesSearching: false })
-      useApp.getState().toast(`Ошибка поиска источников: ${errorMessage(error)}`, 'error')
+      useApp.getState().toast(t('Ошибка поиска источников: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -129,7 +130,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
     if (!trackId) return
     const lyrics: Lyrics = { ...candidate, trackId, origin: candidate.origin ?? 'user' }
     await get().save(lyrics)
-    useApp.getState().toast(`Текст сохранён (${candidate.provider ?? 'источник'})`, 'success')
+    useApp.getState().toast(t('Текст сохранён ({0})', { 0: candidate.provider ?? t('источник') }), 'success')
     set({ candidates: [] })
   },
 
@@ -139,7 +140,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
     const lyrics = await api.lyrics.bundledGet(songId, trackId)
     if (!lyrics) return
     await get().save(lyrics)
-    useApp.getState().toast('Текст взят из открытого пака', 'success')
+    useApp.getState().toast(t('Текст взят из открытого пака'), 'success')
     set({ bundledMatches: [] })
   },
 
@@ -148,11 +149,11 @@ export const useLyrics = create<LyricsState>((set, get) => ({
     if (!trackId) return
     const lyrics = await api.lyrics.wikisourceFetch(title, trackId)
     if (!lyrics) {
-      useApp.getState().toast('Не удалось получить текст из Wikisource', 'error')
+      useApp.getState().toast(t('Не удалось получить текст из Wikisource'), 'error')
       return
     }
     await get().save(lyrics)
-    useApp.getState().toast('Текст получен из Wikisource', 'success')
+    useApp.getState().toast(t('Текст получен из Wikisource'), 'success')
     set({ wikisource: [] })
   },
 
@@ -164,7 +165,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
       // Kept in sync so track rows can show their "has lyrics" badge instantly.
       useApp.setState({ lyricsIds: new Set([...app.lyricsIds, saved.trackId]) })
     } catch (error) {
-      useApp.getState().toast(`Не удалось сохранить текст: ${errorMessage(error)}`, 'error')
+      useApp.getState().toast(t('Не удалось сохранить текст: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -175,7 +176,7 @@ export const useLyrics = create<LyricsState>((set, get) => ({
     const next = new Set(app.lyricsIds)
     next.delete(trackId)
     useApp.setState({ lyricsIds: next })
-    useApp.getState().toast('Пользовательский текст удалён')
+    useApp.getState().toast(t('Пользовательский текст удалён'))
   },
 
   importFromFile: async (track) => {
@@ -191,16 +192,16 @@ export const useLyrics = create<LyricsState>((set, get) => ({
       useApp.setState({ lyricsIds: new Set([...app.lyricsIds, lyrics.trackId]) })
       useApp
         .getState()
-        .toast(lyrics.synced?.length ? 'Импортирован синхронный текст' : 'Импортирован текст', 'success')
+        .toast(lyrics.synced?.length ? t('Импортирован синхронный текст') : t('Импортирован текст'), 'success')
     } catch (error) {
-      useApp.getState().toast(`Ошибка импорта: ${errorMessage(error)}`, 'error')
+      useApp.getState().toast(t('Ошибка импорта: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
   exportToFile: async (track) => {
     const lyrics = get().saved ?? get().bundled
     if (!lyrics) {
-      useApp.getState().toast('Нет текста для сохранения', 'error')
+      useApp.getState().toast(t('Нет текста для сохранения'), 'error')
       return
     }
     try {
@@ -208,9 +209,9 @@ export const useLyrics = create<LyricsState>((set, get) => ({
         { id: track.id, title: track.title, artist: track.artist, album: track.album } as never,
         lyrics
       )
-      if (path) useApp.getState().toast('Файл сохранён', 'success')
+      if (path) useApp.getState().toast(t('Файл сохранён'), 'success')
     } catch (error) {
-      useApp.getState().toast(`Ошибка сохранения: ${errorMessage(error)}`, 'error')
+      useApp.getState().toast(t('Ошибка сохранения: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 

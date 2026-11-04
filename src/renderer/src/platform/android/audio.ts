@@ -16,6 +16,7 @@
 
 import { registerPlugin } from '@capacitor/core'
 import type { AudioHints, PlatformAudio } from '../../lib/media'
+import { t } from '../../lib/i18n'
 
 interface NativeState {
   state?: 'idle' | 'buffering' | 'ready' | 'ended'
@@ -248,7 +249,7 @@ class NativeAudio {
   /* ------------------------------------------------------------------ */
 
   private ensureOpen(): Promise<void> {
-    if (!this.url) return Promise.reject(new Error('У трека нет ссылки на аудио'))
+    if (!this.url) return Promise.reject(new Error(t('У трека нет ссылки на аудио')))
     if (this.opened === this.url && this.opening) return this.opening
 
     const url = this.url

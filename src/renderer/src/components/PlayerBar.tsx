@@ -11,6 +11,7 @@ import { useApp, useIsFavorite, useTrack } from '../state/store'
 import { usePlayer } from '../state/player'
 import { Cover } from './Cover'
 import { Icon } from './Icon'
+import { t } from '../lib/i18n'
 
 /* ------------------------------------------------------------------ */
 /* Transport                                                           */
@@ -40,7 +41,7 @@ export function SeekBar({
       step={0.25}
       value={value}
       disabled={duration <= 0}
-      aria-label="Позиция воспроизведения"
+      aria-label={t('Позиция воспроизведения')}
       style={{ ['--seek' as string]: `${percent}%` }}
       onChange={(event) => {
         const next = Number(event.target.value)
@@ -67,7 +68,7 @@ export function VolumeBar(): JSX.Element {
       <button
         type="button"
         className="iconbtn iconbtn--sm"
-        title={muted ? 'Включить звук (M)' : 'Выключить звук (M)'}
+        title={muted ? t('Включить звук (M)') : t('Выключить звук (M)')}
         onClick={toggleMute}
       >
         <Icon name={icon} size={17} />
@@ -79,7 +80,7 @@ export function VolumeBar(): JSX.Element {
         max={1}
         step={0.01}
         value={shown}
-        aria-label="Громкость"
+        aria-label={t('Громкость')}
         style={{ ['--seek' as string]: `${shown * 100}%` }}
         onChange={(event) => setVolume(Number(event.target.value))}
       />
@@ -100,7 +101,7 @@ export function TransportControls({ size = 'md' }: { size?: 'md' | 'lg' }): JSX.
       <button
         type="button"
         className={`iconbtn${shuffle ? ' iconbtn--active' : ''}`}
-        title="Случайный порядок (S)"
+        title={t('Случайный порядок (S)')}
         onClick={() => usePlayer.getState().toggleShuffle()}
       >
         <Icon name="shuffle" size={big ? 20 : 17} />
@@ -109,7 +110,7 @@ export function TransportControls({ size = 'md' }: { size?: 'md' | 'lg' }): JSX.
       <button
         type="button"
         className="iconbtn"
-        title="Предыдущий трек (P)"
+        title={t('Предыдущий трек (P)')}
         disabled={!hasQueue}
         onClick={() => usePlayer.getState().previous()}
       >
@@ -119,7 +120,7 @@ export function TransportControls({ size = 'md' }: { size?: 'md' | 'lg' }): JSX.
       <button
         type="button"
         className={`transport__play${buffering ? ' transport__play--buffering' : ''}`}
-        title={playing ? 'Пауза (Пробел)' : 'Воспроизвести (Пробел)'}
+        title={playing ? t('Пауза (Пробел)') : t('Воспроизвести (Пробел)')}
         onClick={() => usePlayer.getState().toggle()}
       >
         <Icon name={playing ? 'pause' : 'play'} size={big ? 26 : 20} />
@@ -128,7 +129,7 @@ export function TransportControls({ size = 'md' }: { size?: 'md' | 'lg' }): JSX.
       <button
         type="button"
         className="iconbtn"
-        title="Следующий трек (N)"
+        title={t('Следующий трек (N)')}
         disabled={!hasQueue}
         onClick={() => usePlayer.getState().next()}
       >
@@ -138,7 +139,7 @@ export function TransportControls({ size = 'md' }: { size?: 'md' | 'lg' }): JSX.
       <button
         type="button"
         className={`iconbtn${repeat !== 'off' ? ' iconbtn--active' : ''}`}
-        title={repeat === 'one' ? 'Повтор одного трека (R)' : 'Режим повтора (R)'}
+        title={repeat === 'one' ? t('Повтор одного трека (R)') : t('Режим повтора (R)')}
         onClick={() => usePlayer.getState().cycleRepeat()}
       >
         <Icon name={repeat === 'one' ? 'repeat-one' : 'repeat'} size={big ? 20 : 17} />
@@ -181,11 +182,11 @@ export function PlayerBar({
         <button
           type="button"
           className="playerbar__coverbtn"
-          title="Открыть экран воспроизведения"
+          title={t('Открыть экран воспроизведения')}
           disabled={!track}
           onClick={openNowPlaying}
         >
-          <Cover src={track?.artwork} alt={track?.title ?? 'Нет трека'} rounded="sm" />
+          <Cover src={track?.artwork} alt={track?.title ?? t('Нет трека')} rounded="sm" />
         </button>
 
         <div className="playerbar__meta">
@@ -196,15 +197,15 @@ export function PlayerBar({
             disabled={!track}
             onClick={openNowPlaying}
           >
-            {track?.title ?? 'Ничего не играет'}
+            {track?.title ?? t('Ничего не играет')}
           </button>
-          <span className="playerbar__artist">{track?.artist ?? 'Выберите трек в каталоге'}</span>
+          <span className="playerbar__artist">{track?.artist ?? t('Выберите трек в каталоге')}</span>
         </div>
 
         <button
           type="button"
           className={`iconbtn iconbtn--sm playerbar__fav${favorite ? ' iconbtn--active' : ''}`}
-          title={favorite ? 'Убрать из избранного (F)' : 'В избранное (F)'}
+          title={favorite ? t('Убрать из избранного (F)') : t('В избранное (F)')}
           disabled={!track}
           onClick={() => {
             if (currentId) void useApp.getState().toggleFavorite(currentId)
@@ -232,7 +233,7 @@ export function PlayerBar({
         <button
           type="button"
           className={`iconbtn${lyricsOpen ? ' iconbtn--active' : ''}`}
-          title="Текст песни (L)"
+          title={t('Текст песни (L)')}
           onClick={onToggleLyrics}
         >
           <Icon name="lyrics" size={18} />
@@ -240,7 +241,7 @@ export function PlayerBar({
         <button
           type="button"
           className={`iconbtn${queueOpen ? ' iconbtn--active' : ''}`}
-          title="Очередь (Q)"
+          title={t('Очередь (Q)')}
           onClick={onToggleQueue}
         >
           <Icon name="queue" size={18} />

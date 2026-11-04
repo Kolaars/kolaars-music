@@ -9,6 +9,7 @@ import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { TrackList } from '../components/TrackList'
 import { EmptyState } from '../components/Feedback'
+import { t } from '../lib/i18n'
 
 export function FavoritesView(): JSX.Element {
   const favorites = useApp((state) => state.favorites)
@@ -28,8 +29,8 @@ export function FavoritesView(): JSX.Element {
     <Page className="page--favorites">
       <PageHeader
         icon="heart"
-        title="Избранное"
-        subtitle={`${trackCountLabel(tracks.length)} отмечено сердцем`}
+        title={t('Избранное')}
+        subtitle={t('{0} отмечено сердцем', { 0: trackCountLabel(tracks.length) })}
         actions={
           <>
             <button
@@ -39,12 +40,11 @@ export function FavoritesView(): JSX.Element {
               onClick={() => playAll(tracks)}
             >
               <Icon name="play" size={15} />
-              Играть
-            </button>
+              {t('Играть')}</button>
             <button
               type="button"
               className="iconbtn iconbtn--sm"
-              title="Перемешать"
+              title={t('Перемешать')}
               disabled={tracks.length === 0}
               onClick={() => shuffleAll(tracks)}
             >
@@ -57,9 +57,9 @@ export function FavoritesView(): JSX.Element {
       {tracks.length === 0 ? (
         <EmptyState
           icon="heart"
-          title="Пока пусто"
-          text="Отмечайте понравившиеся записи значком сердца — они соберутся здесь."
-          action={{ label: 'Открыть обзор', icon: 'compass', onClick: () => setRoute({ name: 'discover' }) }}
+          title={t('Пока пусто')}
+          text={t('Отмечайте понравившиеся записи значком сердца — они соберутся здесь.')}
+          action={{ label: t('Открыть обзор'), icon: 'compass', onClick: () => setRoute({ name: 'discover' }) }}
         />
       ) : (
         <TrackList tracks={tracks} />

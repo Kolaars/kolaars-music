@@ -9,6 +9,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import { api } from '../lib/api'
 import { Icon } from './Icon'
+import { t } from '../lib/i18n'
 
 export interface TitleBarProps {
   title: string
@@ -32,7 +33,7 @@ export function TitleBar({ title, subtitle, canGoBack, onBack }: TitleBarProps):
           type="button"
           className="iconbtn iconbtn--sm titlebar__back"
           disabled={!canGoBack}
-          title="Назад"
+          title={t('Назад')}
           onClick={onBack}
         >
           <Icon name="chevron-left" size={16} />
@@ -48,7 +49,7 @@ export function TitleBar({ title, subtitle, canGoBack, onBack }: TitleBarProps):
         <button
           type="button"
           className="winbtn"
-          title="Свернуть"
+          title={t('Свернуть')}
           onClick={() => void api.app.minimize()}
         >
           <Icon name="minimize" size={16} strokeWidth={1.6} />
@@ -56,7 +57,7 @@ export function TitleBar({ title, subtitle, canGoBack, onBack }: TitleBarProps):
         <button
           type="button"
           className="winbtn"
-          title={maximized ? 'Восстановить' : 'Развернуть'}
+          title={maximized ? t('Восстановить') : t('Развернуть')}
           onClick={() => void api.app.toggleMaximize()}
         >
           <Icon name={maximized ? 'restore' : 'maximize'} size={15} strokeWidth={1.6} />
@@ -64,7 +65,7 @@ export function TitleBar({ title, subtitle, canGoBack, onBack }: TitleBarProps):
         <button
           type="button"
           className="winbtn winbtn--close"
-          title="Закрыть"
+          title={t('Закрыть')}
           onClick={() => void api.app.close()}
         >
           <Icon name="close" size={16} strokeWidth={1.6} />

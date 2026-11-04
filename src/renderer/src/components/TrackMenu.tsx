@@ -15,6 +15,7 @@ import { usePlayer } from '../state/player'
 import { MenuButton, type MenuItemSpec } from './MenuButton'
 import { Modal } from './Modal'
 import { Icon, type IconName } from './Icon'
+import { t } from '../lib/i18n'
 
 export interface TrackMenuProps {
   track: Track
@@ -30,7 +31,7 @@ export function TrackMenu({
   track,
   className,
   icon = 'more',
-  title = 'Действия с треком',
+  title = t('Действия с треком'),
   context,
   contextIndex
 }: TrackMenuProps): JSX.Element {
@@ -47,12 +48,12 @@ export function TrackMenu({
     list.push(
       blocked
         ? {
-            label: 'Открыть в YouTube Music',
+            label: t('Открыть в YouTube Music'),
             icon: 'external',
             onSelect: () => openExternalTrack(track)
           }
         : {
-            label: 'Воспроизвести',
+            label: t('Воспроизвести'),
             icon: 'play',
             onSelect: () => {
               const player = usePlayer.getState()
@@ -62,29 +63,29 @@ export function TrackMenu({
           }
     )
     list.push({
-      label: 'Играть следующим',
+      label: t('Играть следующим'),
       icon: 'next',
       disabled: blocked,
-      hint: blocked ? 'недоступно' : undefined,
+      hint: blocked ? t('недоступно') : undefined,
       onSelect: () => usePlayer.getState().addToQueue(track, 'next')
     })
     list.push({
-      label: 'В очередь',
+      label: t('В очередь'),
       icon: 'queue',
       disabled: blocked,
-      hint: blocked ? 'недоступно' : undefined,
+      hint: blocked ? t('недоступно') : undefined,
       onSelect: () => usePlayer.getState().addToQueue(track, 'end')
     })
 
     list.push({
-      label: favorite ? 'Убрать из избранного' : 'В избранное',
+      label: favorite ? t('Убрать из избранного') : t('В избранное'),
       icon: favorite ? 'heart-filled' : 'heart',
       separatorBefore: true,
       onSelect: () => void useApp.getState().toggleFavorite(track.id)
     })
 
     list.push({
-      label: 'Добавить в плейлист…',
+      label: t('Добавить в плейлист…'),
       icon: 'plus',
       onSelect: () => setPlaylistOpen(true)
     })
@@ -95,7 +96,7 @@ export function TrackMenu({
 
     if (track.identifier && !external) {
       list.push({
-        label: 'Перейти к альбому',
+        label: t('Перейти к альбому'),
         icon: 'disc',
         onSelect: () =>
           useApp.getState().setRoute({
@@ -109,7 +110,7 @@ export function TrackMenu({
     if (!external) {
       const canDownload = !track.offline && (Boolean(track.streamUrl) || Boolean(track.identifier))
       list.push({
-        label: track.offline ? 'Уже доступно офлайн' : 'Скачать офлайн',
+        label: track.offline ? t('Уже доступно офлайн') : t('Скачать офлайн'),
         icon: 'download',
         disabled: !canDownload,
         separatorBefore: true,
@@ -119,7 +120,7 @@ export function TrackMenu({
 
     if (track.sourceUrl) {
       list.push({
-        label: 'Открыть страницу записи',
+        label: t('Открыть страницу записи'),
         icon: 'external',
         onSelect: () => void api.app.openExternal(track.sourceUrl as string)
       })
@@ -127,7 +128,7 @@ export function TrackMenu({
 
     if (track.filePath) {
       list.push({
-        label: 'Показать в папке',
+        label: t('Показать в папке'),
         icon: 'folder',
         onSelect: () => void api.local.reveal(track.filePath as string)
       })
@@ -135,7 +136,7 @@ export function TrackMenu({
 
     if (track.source !== 'seed' || track.offline) {
       list.push({
-        label: 'Удалить из библиотеки',
+        label: t('Удалить из библиотеки'),
         icon: 'trash',
         danger: true,
         separatorBefore: true,
@@ -148,7 +149,7 @@ export function TrackMenu({
 
   const addTo = async (playlistId: string): Promise<void> => {
     await useApp.getState().addTracksToPlaylist(playlistId, [track])
-    useApp.getState().toast('Трек добавлен в плейлист', 'success')
+    useApp.getState().toast(t('Трек добавлен в плейлист'), 'success')
     setPlaylistOpen(false)
   }
 
@@ -156,7 +157,7 @@ export function TrackMenu({
     const name = newName.trim()
     if (!name) return
     const playlist = await useApp.getState().createPlaylist(name, [track])
-    if (playlist) useApp.getState().toast(`Плейлист «${playlist.name}» создан`, 'success')
+    if (playlist) useApp.getState().toast(t('Плейлист «{0}» создан', { 0: playlist.name }), 'success')
     setNewName('')
     setPlaylistOpen(false)
   }
@@ -167,13 +168,13 @@ export function TrackMenu({
 
       <Modal
         open={playlistOpen}
-        title="Добавить в плейлист"
+        title={t('Добавить в плейлист')}
         subtitle={`${track.artist} — ${track.title}`}
         onClose={() => setPlaylistOpen(false)}
         width={480}
       >
         {playlists.length === 0 ? (
-          <p className="dialog__text">Плейлистов пока нет — создайте первый ниже.</p>
+          <p className="dialog__text">{t('Плейлистов пока нет — создайте первый ниже.')}</p>
         ) : (
           <ul className="source-list">
             {playlists.map((playlist) => (
@@ -182,26 +183,22 @@ export function TrackMenu({
                   <span className="source-list__title">
                     <Icon name="disc" size={14} /> {playlist.name}
                   </span>
-                  <span className="source-list__meta">{playlist.trackIds.length} треков</span>
+                  <span className="source-list__meta">{t('{0} треков', { 0: playlist.trackIds.length })}</span>
                 </div>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => void addTo(playlist.id)}>
-                  Добавить
-                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => void addTo(playlist.id)}>{t('Добавить')}</button>
               </li>
             ))}
           </ul>
         )}
 
         <div className="dialog__form">
-          <label className="field__label" htmlFor="new-playlist-name">
-            Новый плейлист
-          </label>
+          <label className="field__label" htmlFor="new-playlist-name">{t('Новый плейлист')}</label>
           <div className="dialog__row">
             <input
               id="new-playlist-name"
               className="input"
               spellCheck={false}
-              placeholder="Название плейлиста"
+              placeholder={t('Название плейлиста')}
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
               onKeyDown={(event) => {
@@ -215,8 +212,7 @@ export function TrackMenu({
               onClick={() => void createAndAdd()}
             >
               <Icon name="plus" size={16} />
-              Создать
-            </button>
+              {t('Создать')}</button>
           </div>
         </div>
       </Modal>

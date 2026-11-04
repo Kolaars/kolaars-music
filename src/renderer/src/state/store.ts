@@ -13,6 +13,7 @@ import { parseTrackList, type ImportListOutcome, type PlaylistFileFormat } from 
 import type { Playlist, Profile, Settings, Track } from '@shared/types'
 import { api, errorMessage } from '../lib/api'
 import type { AppInfo, DownloadRecord, ShelfDescriptor } from '../../../preload/index'
+import { t } from '../lib/i18n'
 
 /** Result of importing a track list: what was found, and the new playlist. */
 export interface TrackListImportResult {
@@ -218,9 +219,9 @@ function wireEvents(
     })
     if (record.status === 'done') {
       void get().refreshLibrary()
-      get().toast(`Загружено: ${record.title}`, 'success')
+      get().toast(t('Загружено: {0}', { 0: record.title }), 'success')
     } else if (record.status === 'error') {
-      get().toast(`Ошибка загрузки: ${record.error ?? record.title}`, 'error')
+      get().toast(t('Ошибка загрузки: {0}', { 0: record.error ?? record.title }), 'error')
     }
   })
 
@@ -308,7 +309,7 @@ export const useApp = create<AppState>((set, get) => ({
     } catch (error) {
       console.error('[bootstrap]', error)
       set({ ready: true })
-      get().toast(`Не удалось запустить приложение: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось запустить приложение: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -363,7 +364,7 @@ export const useApp = create<AppState>((set, get) => ({
         return resolved
       }
     } catch (error) {
-      get().toast(`Не удалось получить аудио: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось получить аудио: {0}', { 0: errorMessage(error) }), 'error')
     }
     return existing
   },
@@ -500,7 +501,7 @@ export const useApp = create<AppState>((set, get) => ({
     await api.library.removeTrack(trackId)
     forgetQueuedTrack(trackId)
     await get().refreshLibrary()
-    get().toast('Трек удалён из библиотеки')
+    get().toast(t('Трек удалён из библиотеки'))
   },
 
   addHistory: (trackId) => {
@@ -528,7 +529,7 @@ export const useApp = create<AppState>((set, get) => ({
       set((state) => ({ playlists: [...state.playlists, playlist] }))
       return playlist
     } catch (error) {
-      get().toast(`Не удалось создать плейлист: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось создать плейлист: {0}', { 0: errorMessage(error) }), 'error')
       return null
     }
   },
@@ -599,7 +600,7 @@ export const useApp = create<AppState>((set, get) => ({
   runTrackListImport: async ({ text, name, searchArchive, fetchLyrics }) => {
     const entries = parseTrackList(text)
     if (entries.length === 0) {
-      get().toast('Не удалось разобрать список — нужны строки «Исполнитель — Название»', 'error')
+      get().toast(t('Не удалось разобрать список — нужны строки «Исполнитель — Название»'), 'error')
       return null
     }
 
@@ -615,10 +616,10 @@ export const useApp = create<AppState>((set, get) => ({
         .filter((track): track is Track => Boolean(track))
       if (tracks.length) get().cacheTracks(tracks)
 
-      const playlist = await get().createPlaylist(name.trim() || 'Импортированный список', tracks)
+      const playlist = await get().createPlaylist(name.trim() || t('Импортированный список'), tracks)
       return { outcome, playlist }
     } catch (error) {
-      get().toast(`Импорт списка не удался: ${errorMessage(error)}`, 'error')
+      get().toast(t('Импорт списка не удался: {0}', { 0: errorMessage(error) }), 'error')
       return null
     } finally {
       set({ importProgress: null })
@@ -629,9 +630,9 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const written = await api.playlists.exportFile(id, format)
       if (!written) return
-      get().toast(`Экспортировано треков: ${written.count}`, 'success')
+      get().toast(t('Экспортировано треков: {0}', { 0: written.count }), 'success')
     } catch (error) {
-      get().toast(`Не удалось экспортировать: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось экспортировать: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -646,13 +647,13 @@ export const useApp = create<AppState>((set, get) => ({
       const prepared = await get().ensureTrack(track.id)
       const target = prepared ?? track
       if (!target.streamUrl) {
-        get().toast('У трека нет прямой ссылки — нечего скачивать', 'error')
+        get().toast(t('У трека нет прямой ссылки — нечего скачивать'), 'error')
         return
       }
       const record = await api.downloads.start(target)
-      get().toast(`Загрузка началась: ${record.title}`, 'info')
+      get().toast(t('Загрузка началась: {0}', { 0: record.title }), 'info')
     } catch (error) {
-      get().toast(`Не удалось начать загрузку: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось начать загрузку: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -681,7 +682,7 @@ export const useApp = create<AppState>((set, get) => ({
       set({ settings: saved })
     } catch (error) {
       set({ settings: previous })
-      get().toast(`Не удалось сохранить настройки: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось сохранить настройки: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -691,9 +692,9 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const state = await api.profiles.create(name)
       set({ profiles: state.profiles, activeProfileId: state.activeId })
-      get().toast(`Профиль «${name.trim() || 'Новый профиль'}» создан`)
+      get().toast(t('Профиль «{0}» создан', { 0: name.trim() || t('Новый профиль') }))
     } catch (error) {
-      get().toast(`Не удалось создать профиль: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось создать профиль: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -702,7 +703,7 @@ export const useApp = create<AppState>((set, get) => ({
       const state = await api.profiles.rename(id, name)
       set({ profiles: state.profiles, activeProfileId: state.activeId })
     } catch (error) {
-      get().toast(`Не удалось переименовать профиль: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось переименовать профиль: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -712,12 +713,12 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const state = await api.profiles.remove(id)
       set({ profiles: state.profiles, activeProfileId: state.activeId })
-      get().toast(`Профиль «${victim?.name ?? id}» удалён`)
+      get().toast(t('Профиль «{0}» удалён', { 0: victim?.name ?? id }))
       // Deleting the active profile makes the main process pick a fallback, so
       // the library has to be reloaded from that profile's directory.
       if (id === activeBefore) await get().reloadForProfile()
     } catch (error) {
-      get().toast(`Не удалось удалить профиль: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось удалить профиль: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -728,9 +729,9 @@ export const useApp = create<AppState>((set, get) => ({
       set({ profiles: state.profiles, activeProfileId: state.activeId })
       await get().reloadForProfile()
       const name = state.profiles.find((profile) => profile.id === state.activeId)?.name ?? ''
-      get().toast(`Профиль: ${name}`, 'success')
+      get().toast(t('Профиль: {0}', { 0: name }), 'success')
     } catch (error) {
-      get().toast(`Не удалось переключить профиль: ${errorMessage(error)}`, 'error')
+      get().toast(t('Не удалось переключить профиль: {0}', { 0: errorMessage(error) }), 'error')
     }
   },
 
@@ -774,7 +775,7 @@ async function runImport(
   set: (partial: Partial<AppState>) => void,
   get: () => AppState
 ): Promise<void> {
-  get().toast(`Импорт: ${paths.length > 1 ? 'папка' : handleLabel(paths[0])}`, 'info')
+  get().toast(t('Импорт: {0}', { 0: paths.length > 1 ? t('папка') : handleLabel(paths[0]) }), 'info')
   try {
     const outcome = await api.local.importPaths(paths)
     set({ importProgress: null })
@@ -786,20 +787,20 @@ async function runImport(
     if (imported === 0) {
       get().toast(
         duplicates > 0
-          ? `Новых файлов нет: ${duplicates} уже есть в библиотеке в лучшем формате`
-          : 'Аудиофайлы не найдены',
+          ? t('Новых файлов нет: {0} уже есть в библиотеке в лучшем формате', { 0: duplicates })
+          : t('Аудиофайлы не найдены'),
         duplicates > 0 ? 'info' : 'error'
       )
     } else {
-      const parts = [`Импортировано ${imported}`]
-      if (withLyrics > 0) parts.push(`текстов: ${withLyrics}`)
-      if (duplicates > 0) parts.push(`дубликатов пропущено: ${duplicates}`)
-      if (outcome.failed.length > 0) parts.push(`ошибок: ${outcome.failed.length}`)
+      const parts = [t('Импортировано {0}', { 0: imported })]
+      if (withLyrics > 0) parts.push(t('текстов: {0}', { 0: withLyrics }))
+      if (duplicates > 0) parts.push(t('дубликатов пропущено: {0}', { 0: duplicates }))
+      if (outcome.failed.length > 0) parts.push(t('ошибок: {0}', { 0: outcome.failed.length }))
       get().toast(parts.join(' · '), 'success')
     }
   } catch (error) {
     set({ importProgress: null })
-    get().toast(`Ошибка импорта: ${errorMessage(error)}`, 'error')
+    get().toast(t('Ошибка импорта: {0}', { 0: errorMessage(error) }), 'error')
   }
 }
 

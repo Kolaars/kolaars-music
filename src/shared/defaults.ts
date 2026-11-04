@@ -46,6 +46,9 @@ export function formatRank(extension: string, priority: readonly string[] = DEFA
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
+  // Russian stays the default for existing installations. Users who prefer
+  // English can switch in Settings, or pick "system" to follow the OS.
+  language: 'ru',
   accent: '#7c5cff',
   crossfade: 0,
   resumeSession: true,

@@ -76,6 +76,7 @@ import {
 } from './local'
 import { SEED_COUNT, SEED_TRACKS, shelfOf } from './seed'
 import * as store from './storage'
+import { t } from '../../lib/i18n'
 
 /* ------------------------------------------------------------------ */
 /* Tiny event bus                                                      */
@@ -192,8 +193,8 @@ async function findLyrics(track: Track): Promise<Lyrics | null> {
 async function runTrackList(request: ImportListRequest): Promise<ImportListOutcome> {
   const startedAt = Date.now()
   const entries = uniqueEntries(request.entries ?? [])
-  if (entries.length === 0) throw new Error('Список пуст — вставьте строки вида «Исполнитель — Название»')
-  if (entries.length > 5000) throw new Error('Слишком много строк (больше 5000)')
+  if (entries.length === 0) throw new Error(t('Список пуст — вставьте строки вида «Исполнитель — Название»'))
+  if (entries.length > 5000) throw new Error(t('Слишком много строк (больше 5000)'))
 
   const db = await store.loadDb()
   const settings = db.settings
@@ -325,7 +326,7 @@ async function runTrackList(request: ImportListRequest): Promise<ImportListOutco
 
 /** Thrown for features that only exist in a later phase of the port. */
 function notYet(feature: string): never {
-  throw new Error(`${feature} появится в следующем обновлении Android-версии`)
+  throw new Error(t('{0} появится в следующем обновлении Android-версии', { 0: feature }))
 }
 
 export function createAndroidApi(): KolaarsApi {
@@ -356,7 +357,7 @@ export function createAndroidApi(): KolaarsApi {
       },
       openExternal: async (rawUrl: string): Promise<boolean> => {
         const url = String(rawUrl ?? '')
-        if (!/^https?:\/\//i.test(url)) throw new Error('Разрешены только http(s)-ссылки')
+        if (!/^https?:\/\//i.test(url)) throw new Error(t('Разрешены только http(s)-ссылки'))
         await Browser.open({ url })
         return true
       },
@@ -526,7 +527,7 @@ export function createAndroidApi(): KolaarsApi {
           const now = Date.now()
           const playlist: Playlist = {
             id: makeId('pl'),
-            name: name.trim() || 'Новый плейлист',
+            name: name.trim() || t('Новый плейлист'),
             description: null,
             trackIds: [...trackIds],
             smart: false,
@@ -690,24 +691,24 @@ export function createAndroidApi(): KolaarsApi {
         }
       },
       setCredential: async (_provider: ExternalProvider, _value: string) =>
-        notYet('Ключи YouTube и SoundCloud'),
+        notYet(t('Ключи YouTube и SoundCloud')),
       clearCredential: async (_provider: ExternalProvider) =>
-        notYet('Ключи YouTube и SoundCloud'),
-      search: async (_query: SourceSearchQuery) => notYet('Поиск по внешним источникам'),
-      resolve: async (_trackId: string) => notYet('Внешние источники')
+        notYet(t('Ключи YouTube и SoundCloud')),
+      search: async (_query: SourceSearchQuery) => notYet(t('Поиск по внешним источникам')),
+      resolve: async (_trackId: string) => notYet(t('Внешние источники'))
     },
 
     local: {
       pickFiles,
       pickFolder,
-      pickDownloadDir: async () => notYet('Выбор папки загрузок'),
+      pickDownloadDir: async () => notYet(t('Выбор папки загрузок')),
       importPaths: (paths: string[]) =>
         importHandles(paths, (done, total, current) => emitImport({ done, total, current })),
       reveal: async () => false
     },
 
     downloads: {
-      start: async (_track: Track) => notYet('Офлайн-загрузки'),
+      start: async (_track: Track) => notYet(t('Офлайн-загрузки')),
       list: async () => [],
       cancel: async () => false,
       remove: async () => false,

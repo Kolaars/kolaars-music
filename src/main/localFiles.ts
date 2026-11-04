@@ -26,6 +26,7 @@ import { coversDir, loadDb, userDataDir } from './db'
 import { findSidecarCover } from './sidecarCover'
 import { DEFAULT_FORMAT_PRIORITY, formatRank } from '@shared/defaults'
 import { AUDIO_EXTENSIONS, isAudioFile, songKey } from '@shared/audio-files'
+import { t } from '@shared/i18n'
 import { restoreForbiddenCharacters } from '@shared/fileNames'
 import { parseLrc } from '@shared/lrc'
 import { parseArtistTitle } from '@shared/tracklist'
@@ -153,7 +154,7 @@ export async function importAudioFile(filePath: string): Promise<{ track: Track;
   const track: Track = {
     id,
     title: baseName,
-    artist: 'Неизвестный исполнитель',
+    artist: t('Неизвестный исполнитель'),
     album: null,
     year: null,
     genres: [],

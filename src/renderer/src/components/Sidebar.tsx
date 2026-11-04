@@ -11,6 +11,7 @@ import { useApp, type Route } from '../state/store'
 import { Icon, type IconName } from './Icon'
 import { MenuButton } from './MenuButton'
 import { ConfirmModal, PromptModal } from './Dialogs'
+import { t } from '../lib/i18n'
 
 interface NavEntry {
   route: Route
@@ -87,7 +88,7 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
         <span className="navitem__icon">
           <Icon name={entry.icon} size={17} />
         </span>
-        <span className="navitem__label">{entry.label}</span>
+        <span className="navitem__label">{t(entry.label)}</span>
         {count != null ? <span className="navitem__count">{count}</span> : null}
       </button>
     )
@@ -109,11 +110,11 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
 
       <div className="sidebar__section">
         <header className="sidebar__sectionhead">
-          <span className="sidebar__sectiontitle">Мои плейлисты</span>
+          <span className="sidebar__sectiontitle">{t('Мои плейлисты')}</span>
           <button
             type="button"
             className="iconbtn iconbtn--sm"
-            title="Новый плейлист (Ctrl+N)"
+            title={t('Новый плейлист (Ctrl+N)')}
             onClick={onNewPlaylist}
           >
             <Icon name="plus" size={16} />
@@ -122,9 +123,7 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
 
         <div className="sidebar__scroll">
           {playlists.length === 0 ? (
-            <p className="sidebar__hint">
-              Пока пусто. Создайте плейлист, чтобы собрать любимые записи.
-            </p>
+            <p className="sidebar__hint">{t('Пока пусто. Создайте плейлист, чтобы собрать любимые записи.')}</p>
           ) : (
             playlists.map((playlist) => {
               const active = route.name === 'playlist' && route.id === playlist.id
@@ -146,15 +145,15 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
                   <MenuButton
                     className="iconbtn iconbtn--sm playlist-item__menu"
                     icon="more"
-                    title="Действия с плейлистом"
+                    title={t('Действия с плейлистом')}
                     items={[
                       {
-                        label: 'Переименовать',
+                        label: t('Переименовать'),
                         icon: 'pencil',
                         onSelect: () => setRenaming({ id: playlist.id, name: playlist.name })
                       },
                       {
-                        label: 'Удалить',
+                        label: t('Удалить'),
                         icon: 'trash',
                         danger: true,
                         separatorBefore: true,
@@ -173,8 +172,8 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
 
       <PromptModal
         open={renaming !== null}
-        title="Переименовать плейлист"
-        label="Название"
+        title={t('Переименовать плейлист')}
+        label={t('Название')}
         initialValue={renaming?.name ?? ''}
         onCancel={() => setRenaming(null)}
         onConfirm={(value) => {
@@ -185,11 +184,9 @@ export function Sidebar({ onNewPlaylist }: SidebarProps): JSX.Element {
 
       <ConfirmModal
         open={removing !== null}
-        title="Удалить плейлист?"
+        title={t('Удалить плейлист?')}
         text={
-          <>
-            Плейлист «{removing?.name}» будет удалён. Сами треки останутся в библиотеке.
-          </>
+          <>{t('Плейлист «{0}» будет удалён. Сами треки останутся в библиотеке.', { 0: removing?.name })}</>
         }
         onCancel={() => setRemoving(null)}
         onConfirm={() => {

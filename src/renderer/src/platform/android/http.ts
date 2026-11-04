@@ -9,6 +9,7 @@
 
 import { CapacitorHttp } from '@capacitor/core'
 import { redactUrl, setHttpTransport, type HttpOptions } from '@shared/net'
+import { t } from '../../lib/i18n'
 
 async function requestText(url: string, opts: HttpOptions = {}): Promise<string> {
   const { timeoutMs = 20_000, retries = 2, headers } = opts
@@ -50,7 +51,7 @@ export function installHttpTransport(): void {
     try {
       return JSON.parse(text) as T
     } catch {
-      throw new Error(`Ожидался JSON от ${redactUrl(url)}`)
+      throw new Error(t('Ожидался JSON от {0}', { 0: redactUrl(url) }))
     }
   })
 }

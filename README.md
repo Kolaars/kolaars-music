@@ -12,8 +12,9 @@ Kolaars Music — настольное приложение-музыкальны
 телеметрии. Вся музыка — общественное достояние или Creative Commons из Internet Archive,
 все тексты — открытые (встроенный сборник общественного достояния + LRCLIB + Wikisource).
 
-> Интерфейс приложения полностью на русском языке. Каждый трек сопровождается ссылкой на
-> первоисточник и сведениями о лицензии.
+> Интерфейс приложения — на русском и английском; язык выбирается в настройках или
+> следует за системой. Каждый трек сопровождается ссылкой на первоисточник и сведениями
+> о лицензии.
 
 Новости, анонсы выпусков и обсуждение — в [Telegram-канале](https://t.me/kolaars_music).
 
@@ -109,6 +110,10 @@ Kolaars Music — настольное приложение-музыкальны
 
 ### Интерфейс
 
+- **Русский и английский языки.** Язык переключается в настройках («Внешний вид») или
+  следует за системой; изменение применяется сразу, без перезапуска. Русский остаётся
+  языком по умолчанию. Переведены экраны, диалоги, уведомления, сообщения об ошибках,
+  меню приложения и форматы дат, времени и размеров.
 - Тёмная и светлая темы, настраиваемый акцентный цвет, четыре варианта вида списков.
 - Собственная рамка окна, полноэкранный режим «Сейчас играет», панели текста и очереди.
 - **Discord Rich Presence** — необязательный показ текущего трека в профиле Discord
@@ -189,11 +194,14 @@ npm run smoke       # сборка + автоматический тест ин�
 | `npm run start` | Просмотр production-сборки через `electron-vite preview`. |
 | `npm run build` | Сборка main, preload и renderer в каталог `out/`. |
 | `npm run typecheck` | Проверка типов (`typecheck:node` + `typecheck:web`). |
-| `npm test` | Все юнит-проверки без Electron (`test:tracklist` + `test:covers` + `test:names` + `test:range`). |
+| `npm test` | Все юнит-проверки без Electron (`test:tracklist`, `test:covers`, `test:names`, `test:range`, `test:discord`, `test:tags`, `test:i18n`). |
 | `npm run test:tracklist` | Юнит-проверки разбора списков треков и экспорта плейлистов. |
 | `npm run test:covers` | Юнит-проверки поиска обложек рядом с аудиофайлом. |
 | `npm run test:names` | Юнит-проверки восстановления символов, запрещённых в именах файлов. |
 | `npm run test:range` | Юнит-проверки разбора `Range`-заголовков для `kmedia://` (перемотка локальных файлов). |
+| `npm run test:discord` | Юнит-проверки кнопок Discord Rich Presence и правил доступа к ним. |
+| `npm run test:tags` | Юнит-проверки чтения тегов и обложек из аудиофайлов. |
+| `npm run test:i18n` | Проверка полноты английского словаря, placeholder'ов и отсутствия кириллицы. |
 | `npm run smoke` | Сборка + автоматический smoke-тест интерфейса. |
 | `npm run smoke:packaged` | Smoke-тест **упакованного** приложения из `release/win-unpacked`. |
 | `npm run tools:seed` | Готовит офлайн-кэш инструментов упаковки (запускается автоматически перед `pack`/`dist`). |
@@ -218,8 +226,8 @@ npm run smoke       # сборка + автоматический тест ин�
 ## Сборка дистрибутивов
 
 ```powershell
-npm run dist:portable   # release/kolaars-music-1.2.2-portable.exe
-npm run dist:nsis       # release/kolaars-music-1.2.2-setup.exe
+npm run dist:portable   # release/kolaars-music-1.3.3-portable.exe
+npm run dist:nsis       # release/kolaars-music-1.3.3-setup.exe
 ```
 
 Конфигурация упаковки — `electron-builder.yml`: установщик NSIS и портативная версия для
@@ -274,7 +282,12 @@ M3U, нормализацию для сопоставления и кругов�
 считает поток не подлежащим перемотке — полоса перемотки перестаёт работать, а переход
 к строке текста или к сохранённой позиции начинает песню заново.
 
-Все четыре группы запускаются одной командой `npm test`.
+`npm run test:i18n` проверяет английский словарь `src/shared/i18n.en.ts`: каждый
+литерал `t('…')` в интерфейсе и главном процессе должен иметь перевод, placeholder'ы
+`{0}`/`{name}` должны совпадать, а в английских строках не должно оставаться кириллицы.
+Динамические подписи (маршруты, сокращения, форматы, провайдеры) проверяются smoke-тестом.
+
+Все группы запускаются одной командой `npm test`.
 
 `npm run smoke` собирает приложение, запускает настоящий Electron с включённой отладкой по
 протоколу Chrome DevTools и проверяет, что интерфейс действительно поднялся: оболочка, меню,
@@ -349,7 +362,7 @@ src/
     lyrics/pack.ts   # встроенный сборник текстов
   preload/           # мост window.kolaars — безопасный API без Node в окне
   renderer/src/      # React 19: state (zustand), views, components, styles
-  shared/            # доменная модель, каналы IPC, LRC, tracklist.ts, значения по умолчанию
+  shared/            # доменная модель, каналы IPC, LRC, tracklist.ts, i18n.ts / i18n.en.ts
 data/                # seed-catalog.json, lyrics-pack.json
 scripts/             # иконки, каталог, кэш упаковки, юнит-проверки, smoke-тесты
 ```
@@ -412,8 +425,8 @@ Kolaars Music не обращается к Яндекс.Музыке, Spotify, G
 
 **Kolaars Music** is an open-source Windows desktop music service: public-domain and Creative
 Commons music from the Internet Archive, paired with openly licensed lyrics (a bundled
-public-domain pack plus on-demand LRCLIB and Wikisource lookups). The user interface is in
-Russian.
+public-domain pack plus on-demand LRCLIB and Wikisource lookups). The interface is available
+in Russian and English; Russian is the default, and Settings can follow the operating system.
 
 *Electron 44 · React 19 · TypeScript · Vite (electron-vite) · Zustand · electron-builder.*
 
@@ -443,6 +456,10 @@ npm run dist:nsis      # NSIS installer          → release/
   debounced.
 * Local audio and artwork reach the renderer only through a privileged `kmedia://` scheme
   with an explicit path allowlist; the window runs with `contextIsolation` and `sandbox`.
+* The UI is localised through a shared dictionary (`src/shared/i18n.ts`) used by both the
+  renderer and the native menu. Switch language under **Settings → Appearance**, or let it
+  follow the OS; no restart is needed. `npm run test:i18n` keeps the English dictionary in
+  sync with the Russian source strings.
 * The packaged UI is served by a built-in HTTP server bound to **`127.0.0.1` only**
   (ports 41723–41727). Official YouTube embeds need a normal HTTP origin and referrer;
   a `file://` page is rejected with error 153. The server exposes nothing but the app's

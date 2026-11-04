@@ -19,6 +19,7 @@ import {
   type ExternalController
 } from '../state/player'
 import { Icon } from './Icon'
+import { t } from '../lib/i18n'
 
 /* ------------------------------------------------------------------ */
 /* Provider API typings (the official scripts have none)               */
@@ -110,7 +111,7 @@ function loadYouTubeApi(): Promise<YouTubeNamespace> {
       script.id = 'kolaars-youtube-api'
       script.src = 'https://www.youtube.com/iframe_api'
       script.async = true
-      script.onerror = () => fail(new Error('Не удалось загрузить YouTube IFrame API'))
+      script.onerror = () => fail(new Error(t('Не удалось загрузить YouTube IFrame API')))
       document.head.appendChild(script)
     }
 
@@ -122,7 +123,7 @@ function loadYouTubeApi(): Promise<YouTubeNamespace> {
     }, 200)
     window.setTimeout(() => {
       window.clearInterval(poll)
-      if (!settled) fail(new Error('YouTube IFrame API не ответил за 20 секунд'))
+      if (!settled) fail(new Error(t('YouTube IFrame API не ответил за 20 секунд')))
     }, 20_000)
   })
 
@@ -153,7 +154,7 @@ function loadSoundCloudApi(): Promise<SoundCloudNamespace> {
       script.id = 'kolaars-soundcloud-api'
       script.src = 'https://w.soundcloud.com/player/api.js'
       script.async = true
-      script.onerror = () => fail(new Error('Не удалось загрузить SoundCloud Widget API'))
+      script.onerror = () => fail(new Error(t('Не удалось загрузить SoundCloud Widget API')))
       document.head.appendChild(script)
     }
 
@@ -165,7 +166,7 @@ function loadSoundCloudApi(): Promise<SoundCloudNamespace> {
     }, 200)
     window.setTimeout(() => {
       window.clearInterval(poll)
-      if (!settled) fail(new Error('SoundCloud Widget API не ответил за 20 секунд'))
+      if (!settled) fail(new Error(t('SoundCloud Widget API не ответил за 20 секунд')))
     }, 20_000)
   })
 
@@ -213,7 +214,7 @@ function ExternalCard({
   const [ready, setReady] = useState(false)
   const blocked = isExternalBlocked(track) || external.embeddable === false
   const service = external.provider === 'youtube' ? 'YouTube Music' : 'SoundCloud'
-  const item = external.provider === 'youtube' ? 'это видео' : 'этот трек'
+  const item = external.provider === 'youtube' ? t('это видео') : t('этот трек')
 
   const handleReady = useCallback(() => setReady(true), [])
   const handleError = useCallback(
@@ -236,22 +237,20 @@ function ExternalCard({
   return (
     <aside
       className={`externalplayer${elevated ? ' externalplayer--elevated' : ''}`}
-      aria-label="Официальный плеер сервиса"
+      aria-label={t('Официальный плеер сервиса')}
     >
       <header className="externalplayer__head">
         <span className="externalplayer__badge">
           <Icon name="external" size={12} />
           {external.provider === 'youtube' ? 'YouTube' : 'SoundCloud'}
         </span>
-        <button type="button" className="externalplayer__link" onClick={openExternal}>
-          Открыть в {service}
-        </button>
+        <button type="button" className="externalplayer__link" onClick={openExternal}>{t('Открыть в {0}', { 0: service })}</button>
       </header>
 
       {!blocked ? (
         <div className="externalplayer__stage">
           {!ready && !error ? (
-            <span className="externalplayer__loading">Загружаем плеер…</span>
+            <span className="externalplayer__loading">{t('Загружаем плеер…')}</span>
           ) : null}
           {external.provider === 'youtube' ? (
             <YouTubeStage external={external} onReady={handleReady} onError={handleError} />
@@ -269,19 +268,13 @@ function ExternalCard({
       {blocked ? (
         <div className="externalplayer__blocked">
           <Icon name="alert" size={18} />
-          <p>
-            Сервис не разрешает встраивание. Откройте {item} в {service}.
-          </p>
-          <button type="button" className="btn btn--primary btn--sm" onClick={openExternal}>
-            Открыть в {service}
-          </button>
+          <p>{t('Сервис не разрешает встраивание. Откройте {0} в {1}.', { 0: item, 1: service })}</p>
+          <button type="button" className="btn btn--primary btn--sm" onClick={openExternal}>{t('Открыть в {0}', { 0: service })}</button>
         </div>
       ) : error ? (
         <p className="externalplayer__error">
           {error}
-          <button type="button" onClick={openExternal}>
-            Открыть в {service}
-          </button>
+          <button type="button" onClick={openExternal}>{t('Открыть в {0}', { 0: service })}</button>
         </p>
       ) : null}
     </aside>
@@ -359,11 +352,11 @@ function YouTubeStage({
             onError: (event) => {
               const code = event?.data
               if (code === 101 || code === 150) {
-                onError('YouTube не разрешил встраивание этого видео.', true)
+                onError(t('YouTube не разрешил встраивание этого видео.'), true)
               } else if (code === 100) {
-                onError('Видео недоступно: удалено, приватное или ограничено.')
+                onError(t('Видео недоступно: удалено, приватное или ограничено.'))
               } else {
-                onError('YouTube не смог воспроизвести это видео.')
+                onError(t('YouTube не смог воспроизвести это видео.'))
               }
             }
           }
@@ -473,7 +466,7 @@ function SoundCloudStage({
         usePlayer.getState().externalEnded()
       })
       widget.bind(SC.Widget.Events.ERROR, () =>
-        onError('SoundCloud не разрешил воспроизведение этого трека')
+        onError(t('SoundCloud не разрешил воспроизведение этого трека'))
       )
     }
 

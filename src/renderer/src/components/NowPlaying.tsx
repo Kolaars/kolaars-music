@@ -14,6 +14,7 @@ import { GrainCanvas } from './GrainCanvas'
 import { Icon } from './Icon'
 import { LyricsPanel } from './LyricsPanel'
 import { SeekBar, TransportControls, VolumeBar } from './PlayerBar'
+import { t } from '../lib/i18n'
 
 export function NowPlaying(): JSX.Element {
   const currentId = usePlayer((state) => state.currentId)
@@ -29,26 +30,23 @@ export function NowPlaying(): JSX.Element {
   return (
     <div className="nowplaying">
       <header className="nowplaying__bar">
-        <button type="button" className="btn btn--ghost btn--sm" title="Свернуть (Esc)" onClick={close}>
+        <button type="button" className="btn btn--ghost btn--sm" title={t('Свернуть (Esc)')} onClick={close}>
           <Icon name="chevron-down" size={16} />
-          Свернуть
-        </button>
+          {t('Свернуть экран')}</button>
         <span className="nowplaying__label">
           <Icon name="disc" size={15} />
-          Сейчас играет
-        </span>
+          {t('Сейчас играет')}</span>
         <button
           type="button"
           className="btn btn--ghost btn--sm"
-          title="Показать очередь"
+          title={t('Показать очередь')}
           onClick={() => {
             close()
             setQueueOpen(true)
           }}
         >
           <Icon name="queue" size={16} />
-          Очередь
-        </button>
+          {t('Очередь')}</button>
       </header>
 
       <div className="nowplaying__body">
@@ -56,7 +54,7 @@ export function NowPlaying(): JSX.Element {
           <div className="nowplaying__artwrap">
             <Cover
               src={track?.artwork}
-              alt={track?.title ?? 'Нет трека'}
+              alt={track?.title ?? t('Нет трека')}
               rounded="lg"
               className="nowplaying__cover"
               icon="disc"
@@ -65,7 +63,7 @@ export function NowPlaying(): JSX.Element {
           </div>
 
           <div className="nowplaying__info">
-            <h1 className="nowplaying__title">{track?.title ?? 'Ничего не играет'}</h1>
+            <h1 className="nowplaying__title">{track?.title ?? t('Ничего не играет')}</h1>
             <p className="nowplaying__artist">{track?.artist ?? '—'}</p>
 
             <div className="nowplaying__tags">
@@ -74,14 +72,12 @@ export function NowPlaying(): JSX.Element {
               {track?.source === 'local' ? (
                 <span className="chip">
                   <Icon name="folder" size={13} />
-                  Локальный файл
-                </span>
+                  {t('Локальный файл')}</span>
               ) : null}
               {track?.offline ? (
                 <span className="chip">
                   <Icon name="offline" size={13} />
-                  Офлайн
-                </span>
+                  {t('Офлайн')}</span>
               ) : null}
               {track?.license ? (
                 <span className="chip" title={track.licenseUrl ?? undefined}>
@@ -98,8 +94,7 @@ export function NowPlaying(): JSX.Element {
                 onClick={() => openExternalTrack(track)}
               >
                 <Icon name="external" size={14} />
-                Открыть в YouTube Music
-              </button>
+                {t('Открыть в YouTube Music')}</button>
             ) : track?.sourceUrl ? (
               <button
                 type="button"
@@ -107,8 +102,7 @@ export function NowPlaying(): JSX.Element {
                 onClick={() => void api.app.openExternal(track.sourceUrl as string)}
               >
                 <Icon name="external" size={14} />
-                Страница записи
-              </button>
+                {t('Страница записи')}</button>
             ) : null}
           </div>
         </section>
@@ -138,7 +132,7 @@ export function NowPlaying(): JSX.Element {
             <button
               type="button"
               className={`iconbtn${favorite ? ' iconbtn--active' : ''}`}
-              title={favorite ? 'Убрать из избранного (F)' : 'В избранное (F)'}
+              title={favorite ? t('Убрать из избранного (F)') : t('В избранное (F)')}
               disabled={!track}
               onClick={() => {
                 if (currentId) void useApp.getState().toggleFavorite(currentId)

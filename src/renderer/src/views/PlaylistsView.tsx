@@ -6,6 +6,7 @@ import { trackCountLabel } from '../lib/format'
 import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { EmptyState } from '../components/Feedback'
+import { t } from '../lib/i18n'
 
 export function PlaylistsView({ onNewPlaylist }: { onNewPlaylist: () => void }): JSX.Element {
   const playlists = useApp((state) => state.playlists)
@@ -25,22 +26,21 @@ export function PlaylistsView({ onNewPlaylist }: { onNewPlaylist: () => void }):
     <Page className="page--playlists">
       <PageHeader
         icon="disc"
-        title="Плейлисты"
-        subtitle={`${playlists.length} коллекций`}
+        title={t('Плейлисты')}
+        subtitle={t('{0} коллекций', { 0: playlists.length })}
         actions={
           <button type="button" className="btn btn--primary btn--sm" onClick={onNewPlaylist}>
             <Icon name="plus" size={15} />
-            Новый плейлист
-          </button>
+            {t('Новый плейлист')}</button>
         }
       />
 
       {playlists.length === 0 ? (
         <EmptyState
           icon="disc"
-          title="Плейлистов пока нет"
-          text="Соберите свою подборку: создайте плейлист и добавляйте в него треки через меню «…» в списках."
-          action={{ label: 'Создать плейлист', icon: 'plus', onClick: onNewPlaylist }}
+          title={t('Плейлистов пока нет')}
+          text={t('Соберите свою подборку: создайте плейлист и добавляйте в него треки через меню «…» в списках.')}
+          action={{ label: t('Создать плейлист'), icon: 'plus', onClick: onNewPlaylist }}
         />
       ) : (
         <div className="playlist-grid">

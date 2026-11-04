@@ -3,6 +3,7 @@
 import type { JSX } from 'react'
 import { useApp } from '../state/store'
 import { Icon, type IconName } from './Icon'
+import { t } from '../lib/i18n'
 
 const ICONS: Record<string, IconName> = {
   info: 'info',
@@ -27,7 +28,7 @@ export function Toasts(): JSX.Element | null {
           <button
             type="button"
             className="iconbtn iconbtn--sm toast__close"
-            title="Скрыть"
+            title={t('Скрыть')}
             onClick={() => dismiss(toast.id)}
           >
             <Icon name="close" size={14} />

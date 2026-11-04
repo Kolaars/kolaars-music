@@ -7,6 +7,7 @@ import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
 import { EmptyState } from './Feedback'
 import { LyricsWorkshop, type WorkshopTab } from './LyricsWorkshop'
+import { t } from '../lib/i18n'
 
 export interface LyricsPanelProps {
   track: Track | null
@@ -103,8 +104,8 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
       <div className={`lyrics lyrics--${variant}`}>
         <EmptyState
           icon="lyrics"
-          title="Текст появится здесь"
-          text="Включите трек, чтобы увидеть текст и караоке-подсветку."
+          title={t('Текст появится здесь')}
+          text={t('Включите трек, чтобы увидеть текст и караоке-подсветку.')}
           compact={variant === 'panel'}
         />
       </div>
@@ -113,7 +114,7 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
 
   const menuItems = [
     {
-      label: 'Найти в открытых базах',
+      label: t('Найти в открытых базах'),
       icon: 'sparkles' as const,
       onSelect: () => {
         void useLyrics.getState().searchOnline(track)
@@ -121,29 +122,29 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
       }
     },
     {
-      label: 'Редактировать текст',
+      label: t('Редактировать текст'),
       icon: 'pencil' as const,
       onSelect: () => openWorkshop('text')
     },
     {
-      label: 'Синхронизировать (караоке)',
+      label: t('Синхронизировать (караоке)'),
       icon: 'mic' as const,
       onSelect: () => openWorkshop('sync')
     },
     {
-      label: 'Импортировать .lrc',
+      label: t('Импортировать .lrc'),
       icon: 'upload' as const,
       separatorBefore: true,
       onSelect: () => void useLyrics.getState().importFromFile(track)
     },
     {
-      label: 'Экспортировать .lrc',
+      label: t('Экспортировать .lrc'),
       icon: 'download' as const,
       disabled: !lyrics,
       onSelect: () => void useLyrics.getState().exportToFile(track)
     },
     {
-      label: 'Удалить пользовательский текст',
+      label: t('Удалить пользовательский текст'),
       icon: 'trash' as const,
       danger: true,
       disabled: !saved,
@@ -158,8 +159,8 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
         <div className="lyrics__headtext">
           <span className="lyrics__eyebrow">
             <Icon name="lyrics" size={14} />
-            {lyrics ? (ORIGIN_LABEL[lyrics.origin] ?? 'Текст') : 'Текст песни'}
-            {lyrics?.synced?.length ? ' · синхронизирован' : ''}
+            {lyrics ? t(ORIGIN_LABEL[lyrics.origin] ?? 'Текст') : t('Текст песни')}
+            {lyrics?.synced?.length ? t(' · синхронизирован') : ''}
           </span>
           <h2 className="lyrics__title">{track.title}</h2>
           <p className="lyrics__artist">{track.artist}</p>
@@ -167,7 +168,7 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
         <MenuButton
           items={menuItems}
           icon="more"
-          title="Действия с текстом"
+          title={t('Действия с текстом')}
           className="iconbtn"
         />
       </header>
@@ -175,15 +176,15 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
       {loading ? (
         <div className="lyrics__scroll" ref={scrollRef}>
           <div className="lyrics__plain">
-            <p>Загрузка текста…</p>
+            <p>{t('Загрузка текста…')}</p>
           </div>
         </div>
       ) : !lyrics ? (
         <EmptyState
           icon="lyrics"
-          title="Текста пока нет"
-          text="Можно взять текст из открытого пака в общественном достоянии, найти его в открытых базах или ввести свой."
-          action={{ label: 'Найти текст', icon: 'sparkles', onClick: () => openWorkshop('sources') }}
+          title={t('Текста пока нет')}
+          text={t('Можно взять текст из открытого пака в общественном достоянии, найти его в открытых базах или ввести свой.')}
+          action={{ label: t('Найти текст'), icon: 'sparkles', onClick: () => openWorkshop('sources') }}
           compact={variant === 'panel'}
         />
       ) : synced && synced.length > 0 ? (
@@ -211,7 +212,7 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
                   index < activeIndex ? ' lyrics__line--past' : ''
                 }`}
                 onClick={() => goToLine(index, line.time)}
-                title="Перейти к этой строке"
+                title={t('Перейти к этой строке')}
               >
                 {line.text}
               </p>
@@ -227,8 +228,7 @@ export function LyricsPanel({ track, variant = 'panel' }: LyricsPanelProps): JSX
           </div>
           <button type="button" className="lyrics__cta" onClick={() => openWorkshop('sync')}>
             <Icon name="mic" size={16} />
-            Добавить синхронизацию для караоке
-          </button>
+            {t('Добавить синхронизацию для караоке')}</button>
         </div>
       )}
 

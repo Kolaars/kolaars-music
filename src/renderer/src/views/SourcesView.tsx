@@ -20,6 +20,7 @@ import { TrackList } from '../components/TrackList'
 import { EmptyState, TrackListSkeleton } from '../components/Feedback'
 import { Switch } from '../components/Controls'
 import { trackCountLabel } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const PROVIDERS: Record<
   ExternalProvider,
@@ -85,7 +86,7 @@ export function SourcesView(): JSX.Element {
     try {
       setStatus(await api.sources.status())
     } catch (reason) {
-      toast(`Не удалось прочитать состояние источников: ${errorMessage(reason)}`, 'error')
+      toast(t('Не удалось прочитать состояние источников: {0}', { 0: errorMessage(reason) }), 'error')
     }
   }, [toast])
 
@@ -152,7 +153,7 @@ export function SourcesView(): JSX.Element {
       setStatus(await api.sources.setCredential(provider, value))
       setKeyDraft('')
       setAttempt((value) => value + 1)
-      toast(`${providerInfo.short}: ключ сохранён в зашифрованном виде`, 'success')
+      toast(t('{0}: ключ сохранён в зашифрованном виде', { 0: t(providerInfo.short) }), 'success')
     } catch (reason) {
       toast(errorMessage(reason), 'error')
     } finally {
@@ -165,7 +166,7 @@ export function SourcesView(): JSX.Element {
     try {
       setStatus(await api.sources.clearCredential(provider))
       setResults([])
-      toast(`${providerInfo.short}: ключ удалён`, 'info')
+      toast(t('{0}: ключ удалён', { 0: t(providerInfo.short) }), 'info')
     } catch (reason) {
       toast(errorMessage(reason), 'error')
     } finally {
@@ -185,8 +186,8 @@ export function SourcesView(): JSX.Element {
     <Page className="page--sources">
       <PageHeader
         icon="link"
-        title="Источники"
-        subtitle="Официальные API сервисов. Kolaars не обходит ограничения и не скачивает защищённый звук."
+        title={t('Источники')}
+        subtitle={t('Официальные API сервисов. Kolaars не обходит ограничения и не скачивает защищённый звук.')}
       />
 
       <nav className="tabs tabs--inline sources__tabs">
@@ -208,25 +209,23 @@ export function SourcesView(): JSX.Element {
           <div className="panel__headtext">
             <h2 className="panel__title">
               <Icon name="shield" size={16} />
-              {providerInfo.label}
+              {t(providerInfo.label)}
               <span className={`sources__status${configured ? ' sources__status--on' : ''}`}>
-                {configured ? 'подключено' : 'не подключено'}
+                {configured ? t('подключено') : t('не подключено')}
               </span>
             </h2>
-            <p className="panel__description">{providerInfo.description}</p>
+            <p className="panel__description">{t(providerInfo.description)}</p>
           </div>
         </header>
 
         <div className="panel__body">
           <div className="sources__row">
             <div className="sources__rowtext">
-              <span className="field__label">Включить источник</span>
-              <span className="field__hint">
-                Выключенный источник не делает сетевых запросов, даже если ключ сохранён.
-              </span>
+              <span className="field__label">{t('Включить источник')}</span>
+              <span className="field__hint">{t('Выключенный источник не делает сетевых запросов, даже если ключ сохранён.')}</span>
             </div>
             <Switch
-              label={`Включить ${providerInfo.label}`}
+              label={t('Включить {0}', { 0: t(providerInfo.label) })}
               checked={enabled}
               onChange={(value) =>
                 void updateSettings({ providers: { ...settings.providers, [provider]: value } })
@@ -236,9 +235,9 @@ export function SourcesView(): JSX.Element {
 
           <div className="sources__row sources__row--key">
             <div className="sources__rowtext">
-              <span className="field__label">{providerInfo.keyLabel}</span>
+              <span className="field__label">{t(providerInfo.keyLabel)}</span>
               <span className="field__hint">
-                {configured ? 'Ключ сохранён. Его нельзя прочитать обратно — только заменить.' : providerInfo.keyHint}
+                {configured ? t('Ключ сохранён. Его нельзя прочитать обратно — только заменить.') : t(providerInfo.keyHint)}
               </span>
             </div>
 
@@ -249,7 +248,7 @@ export function SourcesView(): JSX.Element {
                 autoComplete="off"
                 spellCheck={false}
                 value={keyDraft}
-                placeholder={configured ? 'Вставьте новый ключ' : 'Вставьте ключ'}
+                placeholder={configured ? t('Вставьте новый ключ') : t('Вставьте ключ')}
                 onChange={(event) => setKeyDraft(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') void saveKey()
@@ -261,7 +260,7 @@ export function SourcesView(): JSX.Element {
                 disabled={saving || keyDraft.trim().length === 0}
                 onClick={() => void saveKey()}
               >
-                {configured ? 'Заменить' : 'Сохранить'}
+                {configured ? t('Заменить') : t('Сохранить')}
               </button>
               {configured ? (
                 <button
@@ -269,9 +268,7 @@ export function SourcesView(): JSX.Element {
                   className="btn btn--ghost btn--sm"
                   disabled={saving}
                   onClick={() => void removeKey()}
-                >
-                  Удалить
-                </button>
+                >{t('Удалить')}</button>
               ) : null}
             </div>
           </div>
@@ -283,11 +280,9 @@ export function SourcesView(): JSX.Element {
               onClick={() => void api.app.openExternal(providerInfo.docsUrl)}
             >
               <Icon name="external" size={14} />
-              {providerInfo.docsLabel}
+              {t(providerInfo.docsLabel)}
             </button>
-            <span className="sources__legal">
-              Звук идёт из официального плеера сервиса. Скачивание и обход DRM не поддерживаются.
-            </span>
+            <span className="sources__legal">{t('Звук идёт из официального плеера сервиса. Скачивание и обход DRM не поддерживаются.')}</span>
           </div>
         </div>
       </section>
@@ -295,10 +290,10 @@ export function SourcesView(): JSX.Element {
       {!online ? (
         <EmptyState
           icon="offline"
-          title="Онлайн-источники выключены"
-          text="Включите их в настройках, чтобы искать в подключённых сервисах."
+          title={t('Онлайн-источники выключены')}
+          text={t('Включите их в настройках, чтобы искать в подключённых сервисах.')}
           action={{
-            label: 'Открыть настройки',
+            label: t('Открыть настройки'),
             icon: 'settings',
             onClick: () => useApp.getState().setRoute({ name: 'settings' })
           }}
@@ -312,7 +307,7 @@ export function SourcesView(): JSX.Element {
               value={query}
               spellCheck={false}
               maxLength={200}
-              placeholder={canSearch ? 'Название трека или исполнитель' : 'Сначала подключите источник'}
+              placeholder={canSearch ? t('Название трека или исполнитель') : t('Сначала подключите источник')}
               disabled={!canSearch}
               onChange={(event) => {
                 setQuery(event.target.value)
@@ -323,7 +318,7 @@ export function SourcesView(): JSX.Element {
               <button
                 type="button"
                 className="iconbtn iconbtn--sm"
-                title="Очистить"
+                title={t('Очистить')}
                 onClick={() => {
                   setQuery('')
                   setPage(1)
@@ -337,38 +332,38 @@ export function SourcesView(): JSX.Element {
           {!canSearch ? (
             <EmptyState
               icon="link"
-              title={configured ? 'Источник выключен' : 'Нужен ключ'}
+              title={configured ? t('Источник выключен') : t('Нужен ключ')}
               text={
                 configured
-                  ? 'Включите переключатель выше, чтобы искать в этом сервисе.'
-                  : providerInfo.keyHint
+                  ? t('Включите переключатель выше, чтобы искать в этом сервисе.')
+                  : t(providerInfo.keyHint)
               }
             />
           ) : error ? (
             <EmptyState
               icon="alert"
-              title="Поиск не удался"
+              title={t('Поиск не удался')}
               text={error}
-              action={{ label: 'Повторить', icon: 'refresh', onClick: () => setAttempt((value) => value + 1) }}
+              action={{ label: t('Повторить'), icon: 'refresh', onClick: () => setAttempt((value) => value + 1) }}
             />
           ) : loading && results.length === 0 ? (
             <TrackListSkeleton rows={6} />
           ) : results.length === 0 ? (
             <EmptyState
               icon="search"
-              title={query.trim() ? 'Ничего не найдено' : 'Что будем искать?'}
+              title={query.trim() ? t('Ничего не найдено') : t('Что будем искать?')}
               text={
                 query.trim()
-                  ? 'Попробуйте другой запрос или проверьте ключ источника.'
-                  : `Поиск идёт напрямую через ${providerInfo.short}.`
+                  ? t('Попробуйте другой запрос или проверьте ключ источника.')
+                  : t('Поиск идёт напрямую через {0}.', { 0: t(providerInfo.short) })
               }
             />
           ) : (
             <>
               <div className="results__bar">
                 <span className="results__count">
-                  {loading ? 'Обновляем…' : `${trackCountLabel(results.length)} найдено`}
-                  {blockedCount > 0 ? ` · ${blockedCount} без встраивания` : ''}
+                  {loading ? t('Обновляем…') : t('{0} найдено', { 0: trackCountLabel(results.length) })}
+                  {blockedCount > 0 ? t(' · {0} без встраивания', { 0: blockedCount }) : ''}
                 </span>
                 <div className="results__pager">
                   <button
@@ -378,8 +373,7 @@ export function SourcesView(): JSX.Element {
                     onClick={() => setPage((value) => Math.max(1, value - 1))}
                   >
                     <Icon name="chevron-left" size={15} />
-                    Назад
-                  </button>
+                    {t('Назад')}</button>
                   <span className="results__page">
                     {page} / {totalPages}
                   </span>
@@ -389,8 +383,7 @@ export function SourcesView(): JSX.Element {
                     disabled={!hasMore || loading}
                     onClick={() => setPage((value) => value + 1)}
                   >
-                    Дальше
-                    <Icon name="chevron-right" size={15} />
+                    {t('Дальше')}<Icon name="chevron-right" size={15} />
                   </button>
                   <button
                     type="button"
@@ -398,8 +391,7 @@ export function SourcesView(): JSX.Element {
                     onClick={() => playAll(results, 0)}
                   >
                     <Icon name="play" size={14} />
-                    Играть всё
-                  </button>
+                    {t('Играть всё')}</button>
                 </div>
               </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, type JSX, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
+import { t } from '../lib/i18n'
 
 export interface ModalProps {
   open: boolean
@@ -44,7 +45,7 @@ export function Modal({
             {title ? <h2 className="modal__title">{title}</h2> : null}
             {subtitle ? <p className="modal__subtitle">{subtitle}</p> : null}
           </div>
-          <button type="button" className="iconbtn" onClick={onClose} title="Закрыть (Esc)">
+          <button type="button" className="iconbtn" onClick={onClose} title={t('Закрыть (Esc)')}>
             <Icon name="close" />
           </button>
         </header>

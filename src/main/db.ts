@@ -25,6 +25,7 @@ import {
   PROFILES_VERSION,
   makeId
 } from '@shared/defaults'
+import { t } from '@shared/i18n'
 import type { PersistedDb, Profile, ProfilesRegistry } from '@shared/types'
 import { allowMediaPathsOfTracks } from './media'
 
@@ -60,7 +61,7 @@ const PROFILE_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i
 
 function safeProfileId(id: string): string {
   const value = String(id ?? '').trim()
-  if (!PROFILE_ID.test(value)) throw new Error('Некорректный идентификатор профиля')
+  if (!PROFILE_ID.test(value)) throw new Error(t('Некорректный идентификатор профиля'))
   return value
 }
 
@@ -186,7 +187,7 @@ export function activeProfile(): Profile | null {
 async function switchTo(id: string): Promise<ProfilesRegistry> {
   const current = await ensureProfiles()
   const target = current.profiles.find((profile) => profile.id === id)
-  if (!target) throw new Error('Профиль не найден')
+  if (!target) throw new Error(t('Профиль не найден'))
   if (current.activeId === id) return current
 
   await flushAndClose()
@@ -202,7 +203,7 @@ async function switchTo(id: string): Promise<ProfilesRegistry> {
 
 export async function createProfile(rawName: string): Promise<ProfilesRegistry> {
   const current = await ensureProfiles()
-  const name = String(rawName ?? '').trim() || 'Новый профиль'
+  const name = String(rawName ?? '').trim() || t('Новый профиль')
   const id = makeId('pf').replace(/[^a-z0-9_-]/gi, '').slice(0, 32)
   await fs.mkdir(profileDir(id), { recursive: true })
   current.profiles.push({ id, name: name.slice(0, 60), createdAt: Date.now() })
@@ -213,9 +214,9 @@ export async function createProfile(rawName: string): Promise<ProfilesRegistry> 
 export async function renameProfile(id: string, rawName: string): Promise<ProfilesRegistry> {
   const current = await ensureProfiles()
   const target = current.profiles.find((profile) => profile.id === safeProfileId(id))
-  if (!target) throw new Error('Профиль не найден')
+  if (!target) throw new Error(t('Профиль не найден'))
   const name = String(rawName ?? '').trim()
-  if (!name) throw new Error('Название профиля не может быть пустым')
+  if (!name) throw new Error(t('Название профиля не может быть пустым'))
   target.name = name.slice(0, 60)
   await saveRegistry(current)
   return current
@@ -228,8 +229,8 @@ export async function renameProfile(id: string, rawName: string): Promise<Profil
 export async function deleteProfile(rawId: string): Promise<ProfilesRegistry> {
   const current = await ensureProfiles()
   const id = safeProfileId(rawId)
-  if (!current.profiles.some((profile) => profile.id === id)) throw new Error('Профиль не найден')
-  if (current.profiles.length <= 1) throw new Error('Нельзя удалить единственный профиль')
+  if (!current.profiles.some((profile) => profile.id === id)) throw new Error(t('Профиль не найден'))
+  if (current.profiles.length <= 1) throw new Error(t('Нельзя удалить единственный профиль'))
 
   if (current.activeId === id) {
     const fallback = current.profiles.find((profile) => profile.id !== id)

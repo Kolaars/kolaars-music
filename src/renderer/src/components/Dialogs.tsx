@@ -8,6 +8,7 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { Modal } from './Modal'
 import { Icon } from './Icon'
+import { t } from '../lib/i18n'
 
 export interface PromptModalProps {
   open: boolean
@@ -28,7 +29,7 @@ export function PromptModal({
   label,
   placeholder,
   initialValue = '',
-  confirmLabel = 'Сохранить',
+  confirmLabel = t('Сохранить'),
   children,
   onCancel,
   onConfirm
@@ -57,9 +58,7 @@ export function PromptModal({
         <>
           <span className="modal__status" />
           <div className="modal__actions">
-            <button type="button" className="btn btn--ghost" onClick={onCancel}>
-              Отмена
-            </button>
+            <button type="button" className="btn btn--ghost" onClick={onCancel}>{t('Отмена')}</button>
             <button
               type="button"
               className="btn btn--primary"
@@ -109,7 +108,7 @@ export function ConfirmModal({
   open,
   title,
   text,
-  confirmLabel = 'Удалить',
+  confirmLabel = t('Удалить'),
   danger = true,
   onCancel,
   onConfirm
@@ -126,9 +125,7 @@ export function ConfirmModal({
         <>
           <span className="modal__status" />
           <div className="modal__actions">
-            <button type="button" className="btn btn--ghost" onClick={onCancel}>
-              Отмена
-            </button>
+            <button type="button" className="btn btn--ghost" onClick={onCancel}>{t('Отмена')}</button>
             <button
               type="button"
               className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`}

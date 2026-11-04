@@ -12,6 +12,7 @@
 
 import { fetchJson } from '../http'
 import type { SearchResultPage, SourceSearchQuery, Track } from '@shared/types'
+import { t } from '@shared/i18n'
 
 const API = 'https://api.soundcloud.com'
 
@@ -90,10 +91,10 @@ function friendlyError(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error)
   if (/HTTP (401|403)/.test(message)) {
     throw new Error(
-      'SoundCloud отклонил client_id. Проверьте, что приложение одобрено, и вставьте ключ заново.'
+      t('SoundCloud отклонил client_id. Проверьте, что приложение одобрено, и вставьте ключ заново.')
     )
   }
-  if (/HTTP 404/.test(message)) throw new Error('SoundCloud не нашёл этот трек')
+  if (/HTTP 404/.test(message)) throw new Error(t('SoundCloud не нашёл этот трек'))
   throw error instanceof Error ? error : new Error(message)
 }
 

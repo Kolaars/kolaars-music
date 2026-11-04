@@ -10,6 +10,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions, typ
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { CH, EV } from '@shared/ipc'
+import { resolveLocale, setLocale, t } from '@shared/i18n'
 import { makeId } from '@shared/defaults'
 import type {
   DiscordPresence,
@@ -27,6 +28,7 @@ import type {
   Track
 } from '@shared/types'
 import * as store from './db'
+import { buildAppMenu } from './menu'
 import {
   configureDiscordRpc,
   discordRpcStatus,
@@ -153,7 +155,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
 
   handle(CH.openExternal, async (_event, rawUrl: string) => {
     const url = String(rawUrl ?? '')
-    if (!/^https?:\/\//i.test(url)) throw new Error('Разрешены только http(s)-ссылки')
+    if (!/^https?:\/\//i.test(url)) throw new Error(t('Разрешены только http(s)-ссылки'))
     await shell.openExternal(url)
     return true
   })
@@ -204,7 +206,8 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
   })
 
   handle(CH.dbSettings, async (_event, patch: Partial<Settings>): Promise<Settings> => {
-    return store.updateDb((db) => {
+    const previousLanguage = (await store.loadDb()).settings.language
+    const settings = await store.updateDb((db) => {
       db.settings = {
         ...db.settings,
         ...patch,
@@ -212,6 +215,11 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
       }
       return db.settings
     })
+    if (settings.language !== previousLanguage) {
+      setLocale(resolveLocale(settings.language, app.getLocale()))
+      buildAppMenu(getWindow)
+    }
+    return settings
   })
 
   handle(CH.dbSession, async (_event, patch: Partial<SessionState>): Promise<SessionState> => {
@@ -358,7 +366,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
       const now = Date.now()
       const playlist: Playlist = {
         id: makeId('pl'),
-        name: name.trim() || 'Новый плейлист',
+        name: name.trim() || t('Новый плейлист'),
         description: null,
         trackIds: [...trackIds],
         smart: false,
@@ -444,7 +452,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     ): Promise<{ path: string; count: number } | null> => {
       const db = await store.loadDb()
       const playlist = db.playlists.find((p) => p.id === id)
-      if (!playlist) throw new Error('Плейлист не найден')
+      if (!playlist) throw new Error(t('Плейлист не найден'))
 
       // A playlist may reference seeded catalog tracks that live outside the
       // profile document, so resolve against both.
@@ -552,11 +560,11 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
 
   handle(CH.lyricsImportLrc, async (_event, track: Track): Promise<Lyrics | null> => {
     const result = await openDialog({
-      title: 'Импорт текста (.lrc)',
+      title: t('Импорт текста (.lrc)'),
       properties: ['openFile'],
       filters: [
-        { name: 'Тексты (LRC)', extensions: ['lrc', 'txt'] },
-        { name: 'Все файлы', extensions: ['*'] }
+        { name: t('Тексты (LRC)'), extensions: ['lrc', 'txt'] },
+        { name: t('Все файлы'), extensions: ['*'] }
       ]
     })
     if (result.canceled || result.filePaths.length === 0) return null
@@ -580,9 +588,9 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
   handle(CH.lyricsExportLrc, async (_event, track: Track, lyrics: Lyrics): Promise<string | null> => {
     const safe = `${track.artist} - ${track.title}`.replace(/[<>:"/\\|?*]/g, ' ').trim()
     const result = await saveDialog({
-      title: 'Сохранить текст как .lrc',
+      title: t('Сохранить текст как .lrc'),
       defaultPath: `${safe || 'lyrics'}.lrc`,
-      filters: [{ name: 'Тексты (LRC)', extensions: ['lrc'] }]
+      filters: [{ name: t('Тексты (LRC)'), extensions: ['lrc'] }]
     })
     if (result.canceled || !result.filePath) return null
 
@@ -657,18 +665,18 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     CH.sourcesSearch,
     async (_event, query: SourceSearchQuery): Promise<SearchResultPage<Track>> => {
       const db = await store.loadDb()
-      if (!db.settings.onlineProviders) throw new Error('Онлайн-источники отключены в настройках')
+      if (!db.settings.onlineProviders) throw new Error(t('Онлайн-источники отключены в настройках'))
 
       const provider = query?.provider
-      if (provider !== 'youtube' && provider !== 'soundcloud') throw new Error('Неизвестный источник')
-      if (!db.settings.providers[provider]) throw new Error('Этот источник выключен в настройках')
+      if (provider !== 'youtube' && provider !== 'soundcloud') throw new Error(t('Неизвестный источник'))
+      if (!db.settings.providers[provider]) throw new Error(t('Этот источник выключен в настройках'))
 
       const key = await getCredential(provider)
       if (!key) {
         throw new Error(
           provider === 'youtube'
-            ? 'Сначала добавьте ключ YouTube Data API на экране «Источники»'
-            : 'Сначала добавьте SoundCloud client_id на экране «Источники»'
+            ? t('Сначала добавьте ключ YouTube Data API на экране «Источники»')
+            : t('Сначала добавьте SoundCloud client_id на экране «Источники»')
         )
       }
 
@@ -704,24 +712,24 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
 
   handle(CH.listPickFile, async (): Promise<{ path: string; text: string } | null> => {
     const result = await openDialog({
-      title: 'Открыть список треков',
+      title: t('Открыть список треков'),
       properties: ['openFile'],
       filters: [
-        { name: 'Списки треков', extensions: ['txt', 'csv', 'tsv', 'm3u', 'm3u8', 'list'] },
-        { name: 'Все файлы', extensions: ['*'] }
+        { name: t('Списки треков'), extensions: ['txt', 'csv', 'tsv', 'm3u', 'm3u8', 'list'] },
+        { name: t('Все файлы'), extensions: ['*'] }
       ]
     })
     if (result.canceled || result.filePaths.length === 0) return null
     const filePath = result.filePaths[0]
     const stat = await fs.stat(filePath)
-    if (stat.size > 4 * 1024 * 1024) throw new Error('Файл слишком большой (больше 4 МБ)')
+    if (stat.size > 4 * 1024 * 1024) throw new Error(t('Файл слишком большой (больше 4 МБ)'))
     return { path: filePath, text: await fs.readFile(filePath, 'utf8') }
   })
 
   handle(CH.listImport, async (_event, request: ImportListRequest): Promise<ImportListOutcome> => {
     const entries = Array.isArray(request?.entries) ? request.entries : []
-    if (entries.length === 0) throw new Error('Список пуст — вставьте строки вида «Исполнитель — Название»')
-    if (entries.length > 5000) throw new Error('Слишком много строк (больше 5000)')
+    if (entries.length === 0) throw new Error(t('Список пуст — вставьте строки вида «Исполнитель — Название»'))
+    if (entries.length > 5000) throw new Error(t('Слишком много строк (больше 5000)'))
     return importTrackList(
       {
         entries,
@@ -736,14 +744,14 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
 
   handle(CH.localPickFiles, async (): Promise<string[]> => {
     const result = await openDialog({
-      title: 'Импорт музыки',
+      title: t('Импорт музыки'),
       properties: ['openFile', 'multiSelections'],
       filters: [
         {
-          name: 'Аудио',
+          name: t('Аудио'),
           extensions: ['mp3', 'm4a', 'aac', 'flac', 'ogg', 'oga', 'opus', 'wav', 'aiff', 'wma']
         },
-        { name: 'Все файлы', extensions: ['*'] }
+        { name: t('Все файлы'), extensions: ['*'] }
       ]
     })
     return result.canceled ? [] : result.filePaths
@@ -751,7 +759,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
 
   handle(CH.localPickFolder, async (): Promise<string | null> => {
     const result = await openDialog({
-      title: 'Импорт папки с музыкой',
+      title: t('Импорт папки с музыкой'),
       properties: ['openDirectory']
     })
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
@@ -759,7 +767,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
 
   handle(CH.localPickDownloadDir, async (): Promise<string | null> => {
     const result = await openDialog({
-      title: 'Папка для офлайн-загрузок',
+      title: t('Папка для офлайн-загрузок'),
       properties: ['openDirectory', 'createDirectory']
     })
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
@@ -792,7 +800,7 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
   handle(CH.downloadList, (): DownloadRecord[] => listDownloads())
 
   handle(CH.downloadStart, async (_event, track: Track): Promise<DownloadRecord> => {
-    if (!track.streamUrl) throw new Error('У трека нет прямой ссылки для скачивания')
+    if (!track.streamUrl) throw new Error(t('У трека нет прямой ссылки для скачивания'))
     const db = await store.loadDb()
     downloadOrigins.set(track.id, track)
     return startDownload(track, resolveDownloadDir(db.settings.downloadDir))

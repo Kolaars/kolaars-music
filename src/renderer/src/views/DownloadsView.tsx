@@ -9,6 +9,7 @@ import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { Cover } from '../components/Cover'
 import { EmptyState } from '../components/Feedback'
+import { t } from '../lib/i18n'
 
 const STATUS_LABEL: Record<string, string> = {
   queued: 'В очереди',
@@ -39,26 +40,25 @@ export function DownloadsView(): JSX.Element {
     <Page className="page--downloads">
       <PageHeader
         icon="download"
-        title="Загрузки"
+        title={t('Загрузки')}
         subtitle={
           downloads.length === 0
-            ? 'Офлайн-копии треков хранятся на диске и играют без интернета'
-            : `${done.length} готово · ${active.length} в процессе · ${formatBytes(totalBytes)} на диске`
+            ? t('Офлайн-копии треков хранятся на диске и играют без интернета')
+            : t('{0} готово · {1} в процессе · {2} на диске', { 0: done.length, 1: active.length, 2: formatBytes(totalBytes) })
         }
         actions={
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => void refreshDownloads()}>
             <Icon name="refresh" size={15} />
-            Обновить
-          </button>
+            {t('Обновить')}</button>
         }
       />
 
       {downloads.length === 0 ? (
         <EmptyState
           icon="download"
-          title="Загрузок пока нет"
-          text="Откройте меню «…» у любого трека и выберите «Скачать офлайн» — копия появится здесь."
-          action={{ label: 'Открыть обзор', icon: 'compass', onClick: () => setRoute({ name: 'discover' }) }}
+          title={t('Загрузок пока нет')}
+          text={t('Откройте меню «…» у любого трека и выберите «Скачать офлайн» — копия появится здесь.')}
+          action={{ label: t('Открыть обзор'), icon: 'compass', onClick: () => setRoute({ name: 'discover' }) }}
         />
       ) : (
         <div className="downloads">
@@ -87,7 +87,7 @@ export function DownloadsView(): JSX.Element {
                   </div>
 
                   <span className="download__meta">
-                    <span className={`badge badge--${record.status}`}>{STATUS_LABEL[record.status]}</span>
+                    <span className={`badge badge--${record.status}`}>{t(STATUS_LABEL[record.status] ?? record.status)}</span>
                     {record.bytesTotal > 0
                       ? `${formatBytes(record.bytesDone)} / ${formatBytes(record.bytesTotal)}`
                       : formatBytes(record.bytesDone)}
@@ -103,8 +103,7 @@ export function DownloadsView(): JSX.Element {
                       onClick={() => void cancelDownload(record.trackId)}
                     >
                       <Icon name="close" size={15} />
-                      Отменить
-                    </button>
+                      {t('Отменить')}</button>
                   ) : null}
 
                   {record.status === 'done' ? (
@@ -115,8 +114,7 @@ export function DownloadsView(): JSX.Element {
                       onClick={() => (track ? playAll([track]) : undefined)}
                     >
                       <Icon name="play" size={15} />
-                      Играть
-                    </button>
+                      {t('Играть')}</button>
                   ) : null}
 
                   {record.status === 'error' || record.status === 'cancelled' ? (
@@ -127,15 +125,14 @@ export function DownloadsView(): JSX.Element {
                       onClick={() => (track ? void startDownload(track) : undefined)}
                     >
                       <Icon name="refresh" size={15} />
-                      Повторить
-                    </button>
+                      {t('Повторить')}</button>
                   ) : null}
 
                   {record.status === 'done' ? (
                     <button
                       type="button"
                       className="iconbtn iconbtn--sm"
-                      title="Показать в папке"
+                      title={t('Показать в папке')}
                       onClick={() => void api.downloads.reveal(record.trackId)}
                     >
                       <Icon name="folder" size={16} />
@@ -145,7 +142,7 @@ export function DownloadsView(): JSX.Element {
                   <button
                     type="button"
                     className="iconbtn iconbtn--sm"
-                    title="Удалить с диска"
+                    title={t('Удалить с диска')}
                     onClick={() => void removeDownload(record.trackId)}
                   >
                     <Icon name="trash" size={16} />

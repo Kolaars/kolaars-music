@@ -7,6 +7,7 @@ import { useApp } from '../state/store'
 import { Modal } from './Modal'
 import { Icon } from './Icon'
 import { formatTime } from '../lib/format'
+import { t } from '../lib/i18n'
 
 export type WorkshopTab = 'text' | 'sync' | 'sources'
 
@@ -174,7 +175,7 @@ export function LyricsWorkshop({
 
   const handleSave = async (): Promise<void> => {
     await saveLyrics(buildLyrics())
-    useApp.getState().toast('Текст сохранён', 'success')
+    useApp.getState().toast(t('Текст сохранён'), 'success')
     onClose()
   }
 
@@ -187,18 +188,18 @@ export function LyricsWorkshop({
 
   const autoDistribute = async (): Promise<void> => {
     if (!effectiveDuration) {
-      useApp.getState().toast('Длительность трека ещё неизвестна — включите воспроизведение', 'error')
+      useApp.getState().toast(t('Длительность трека ещё неизвестна — включите воспроизведение'), 'error')
       return
     }
     const draft = await useLyrics.getState().draftTimings(plain, effectiveDuration)
     if (draft.length === 0) {
-      useApp.getState().toast('Сначала введите текст', 'error')
+      useApp.getState().toast(t('Сначала введите текст'), 'error')
       return
     }
     pristine.current = false
     setLines(draft.map((line) => ({ text: line.text, time: line.time })))
     setPointer(0)
-    useApp.getState().toast('Черновые метки расставлены — уточните их вручную', 'info')
+    useApp.getState().toast(t('Черновые метки расставлены — уточните их вручную'), 'info')
   }
 
   const syncProgress = useMemo(() => {
@@ -215,22 +216,19 @@ export function LyricsWorkshop({
     <Modal
       open
       onClose={onClose}
-      title="Текст песни"
+      title={t('Текст песни')}
       subtitle={headerSubtitle}
       width={860}
       footer={
         <>
           <span className="modal__status">
-            {source ? `Текущий источник: ${source.provider ?? source.origin}` : 'Текста пока нет'}
+            {source ? t('Текущий источник: {0}', { 0: source.provider ?? source.origin }) : t('Текста пока нет')}
           </span>
           <div className="modal__actions">
-            <button type="button" className="btn btn--ghost" onClick={onClose}>
-              Отмена
-            </button>
+            <button type="button" className="btn btn--ghost" onClick={onClose}>{t('Отмена')}</button>
             <button type="button" className="btn btn--primary" onClick={() => void handleSave()}>
               <Icon name="check" size={16} />
-              Сохранить
-            </button>
+              {t('Сохранить')}</button>
           </div>
         </>
       }
@@ -244,30 +242,25 @@ export function LyricsWorkshop({
             onClick={() => setActive(entry.id)}
           >
             <Icon name={entry.icon} size={15} />
-            {entry.label}
+            {t(entry.label)}
           </button>
         ))}
       </nav>
 
       {active === 'text' ? (
         <div className="workshop__section">
-          <p className="workshop__hint">
-            Введите текст построчно. Пустые строки используются как разделители куплетов и не влияют на
-            синхронизацию.
-          </p>
+          <p className="workshop__hint">{t('Введите текст построчно. Пустые строки используются как разделители куплетов и не влияют на синхронизацию.')}</p>
           <textarea
             className="input input--area workshop__textarea"
             value={plain}
             spellCheck={false}
-            placeholder={'Первая строка\nВторая строка\n\nНовый куплет'}
+            placeholder={t('Первая строка\nВторая строка\n\nНовый куплет')}
             onChange={(event) => {
               pristine.current = false
               setPlain(event.target.value)
             }}
           />
-          <p className="workshop__meta">
-            {meaningfulLines(plain).length} строк · {plain.length} символов
-          </p>
+          <p className="workshop__meta">{t('{0} строк · {1} символов', { 0: meaningfulLines(plain).length, 1: plain.length })}</p>
         </div>
       ) : null}
 
@@ -281,14 +274,13 @@ export function LyricsWorkshop({
               disabled={pointer >= lines.length}
             >
               <Icon name="mic" size={16} />
-              Отметить строку под номером {Math.min(pointer + 1, lines.length)} (пробел)
-            </button>
+              {t('Отметить строку под номером')}{Math.min(pointer + 1, lines.length)} {t('(пробел)')}</button>
             <div className="syncbar__controls">
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
                 onClick={() => setPointer((value) => Math.max(0, value - 1))}
-                title="Вернуться на строку назад"
+                title={t('Вернуться на строку назад')}
               >
                 <Icon name="chevron-left" size={15} />
               </button>
@@ -296,7 +288,7 @@ export function LyricsWorkshop({
                 type="button"
                 className="btn btn--ghost btn--sm"
                 onClick={() => setPointer((value) => Math.min(lines.length - 1, value + 1))}
-                title="Пропустить строку"
+                title={t('Пропустить строку')}
               >
                 <Icon name="chevron-right" size={15} />
               </button>
@@ -304,37 +296,29 @@ export function LyricsWorkshop({
                 type="button"
                 className="btn btn--ghost btn--sm"
                 onClick={() => void autoDistribute()}
-                title="Расставить метки равномерно по длительности"
+                title={t('Расставить метки равномерно по длительности')}
               >
                 <Icon name="equalizer" size={15} />
-                Черновик
-              </button>
+                {t('Черновик')}</button>
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
                 onClick={() => shiftAll(-0.5)}
-                title="Сдвинуть всё на 0,5 с назад"
-              >
-                −0,5 с
-              </button>
+                title={t('Сдвинуть всё на 0,5 с назад')}
+              >{t('−0,5 с')}</button>
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
                 onClick={() => shiftAll(0.5)}
-                title="Сдвинуть всё на 0,5 с вперёд"
-              >
-                +0,5 с
-              </button>
+                title={t('Сдвинуть всё на 0,5 с вперёд')}
+              >{t('+0,5 с')}</button>
             </div>
           </div>
 
           <div className="progress-line" aria-hidden="true">
             <div className="progress-line__fill" style={{ width: `${syncProgress.percent}%` }} />
           </div>
-          <p className="workshop__meta">
-            Размечено {syncProgress.done} из {syncProgress.total}
-            {missingTimes > 0 ? ` · без метки: ${missingTimes}` : ''}
-          </p>
+          <p className="workshop__meta">{t('Размечено {0} из {1} {2}', { 0: syncProgress.done, 1: syncProgress.total, 2: missingTimes > 0 ? t(' · без метки: {0}', { 0: missingTimes }) : '' })}</p>
 
           <ol className="synclist">
             {lines.map((line, index) => (
@@ -351,7 +335,7 @@ export function LyricsWorkshop({
                     setPointer(index)
                     if (line.time == null) mark(index)
                   }}
-                  title="Отметить текущим временем"
+                  title={t('Отметить текущим временем')}
                 >
                   {index + 1}
                 </button>
@@ -373,7 +357,7 @@ export function LyricsWorkshop({
                 <button
                   type="button"
                   className="iconbtn iconbtn--sm"
-                  title="Отметить временем воспроизведения"
+                  title={t('Отметить временем воспроизведения')}
                   onClick={() => mark(index)}
                 >
                   <Icon name="clock" size={15} />
@@ -381,7 +365,7 @@ export function LyricsWorkshop({
                 <button
                   type="button"
                   className="iconbtn iconbtn--sm"
-                  title="Сбросить метку"
+                  title={t('Сбросить метку')}
                   onClick={() =>
                     setLines((current) => {
                       pristine.current = false
@@ -396,10 +380,10 @@ export function LyricsWorkshop({
                 <button
                   type="button"
                   className="iconbtn iconbtn--sm"
-                  title="Прослушать это место"
+                  title={t('Прослушать это место')}
                   onClick={() => {
                     if (line.time == null) {
-                      useApp.getState().toast('У строки ещё нет метки', 'info')
+                      useApp.getState().toast(t('У строки ещё нет метки'), 'info')
                       return
                     }
                     usePlayer.getState().seek(Math.max(0, line.time - 1.2))
@@ -422,7 +406,7 @@ export function LyricsWorkshop({
               className="input"
               value={query}
               spellCheck={false}
-              placeholder="Название и исполнитель"
+              placeholder={t('Название и исполнитель')}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
@@ -440,7 +424,7 @@ export function LyricsWorkshop({
                 setQueryLoaded(true)
               }}
             >
-              {sourcesSearching ? 'Поиск…' : 'Искать'}
+              {sourcesSearching ? t('Поиск…') : t('Искать')}
             </button>
           </div>
 
@@ -448,12 +432,11 @@ export function LyricsWorkshop({
             <header className="source-block__head">
               <h3>
                 <Icon name="sparkles" size={15} />
-                Открытый пак Kolaars
-              </h3>
-              <p>Тексты в общественном достоянии, работают без интернета.</p>
+                {t('Открытый пак Kolaars')}</h3>
+              <p>{t('Тексты в общественном достоянии, работают без интернета.')}</p>
             </header>
             {bundledMatches.length === 0 ? (
-              <p className="source-block__empty">Ничего не найдено. Попробуйте другой запрос.</p>
+              <p className="source-block__empty">{t('Ничего не найдено. Попробуйте другой запрос.')}</p>
             ) : (
               <ul className="source-list">
                 {bundledMatches.map((song) => (
@@ -469,9 +452,7 @@ export function LyricsWorkshop({
                       type="button"
                       className="btn btn--ghost btn--sm"
                       onClick={() => void useLyrics.getState().applyBundled(song.id)}
-                    >
-                      Применить
-                    </button>
+                    >{t('Применить')}</button>
                   </li>
                 ))}
               </ul>
@@ -482,9 +463,8 @@ export function LyricsWorkshop({
             <header className="source-block__head">
               <h3>
                 <Icon name="globe" size={15} />
-                LRCLIB — открытая база с синхронными текстами
-              </h3>
-              <p>Ищет по исполнителю, названию и длительности; часто есть караоке-разметка.</p>
+                {t('LRCLIB — открытая база с синхронными текстами')}</h3>
+              <p>{t('Ищет по исполнителю, названию и длительности; часто есть караоке-разметка.')}</p>
             </header>
             <button
               type="button"
@@ -493,8 +473,7 @@ export function LyricsWorkshop({
               onClick={() => void useLyrics.getState().searchOnline(track)}
             >
               <Icon name="search" size={15} />
-              Искать в LRCLIB
-            </button>
+              {t('Искать в LRCLIB')}</button>
             {candidates.length > 0 ? (
               <ul className="source-list">
                 {candidates.map((candidate, index) => (
@@ -505,8 +484,7 @@ export function LyricsWorkshop({
                         {candidate.synced?.length ? (
                           <span className="badge badge--accent">
                             <Icon name="mic" size={11} />
-                            караоке
-                          </span>
+                            {t('караоке')}</span>
                         ) : null}
                       </span>
                       <span className="source-list__meta">
@@ -519,9 +497,7 @@ export function LyricsWorkshop({
                       type="button"
                       className="btn btn--ghost btn--sm"
                       onClick={() => void useLyrics.getState().adopt(candidate)}
-                    >
-                      Применить
-                    </button>
+                    >{t('Применить')}</button>
                   </li>
                 ))}
               </ul>
@@ -532,13 +508,12 @@ export function LyricsWorkshop({
             <header className="source-block__head">
               <h3>
                 <Icon name="book" size={15} />
-                Wikisource — тексты в общественном достоянии
-              </h3>
-              <p>Проверенный источник для песен, опубликованных до 1931 года.</p>
+                {t('Wikisource — тексты в общественном достоянии')}</h3>
+              <p>{t('Проверенный источник для песен, опубликованных до 1931 года.')}</p>
             </header>
             {wikisource.length === 0 ? (
               <p className="source-block__empty">
-                {queryLoaded ? 'Совпадений нет.' : 'Введите запрос и нажмите «Искать».'}
+                {queryLoaded ? t('Совпадений нет.') : t('Введите запрос и нажмите «Искать».')}
               </p>
             ) : (
               <ul className="source-list">
@@ -552,9 +527,7 @@ export function LyricsWorkshop({
                       type="button"
                       className="btn btn--ghost btn--sm"
                       onClick={() => void useLyrics.getState().applyWikisource(hit.title)}
-                    >
-                      Применить
-                    </button>
+                    >{t('Применить')}</button>
                   </li>
                 ))}
               </ul>

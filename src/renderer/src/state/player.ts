@@ -13,6 +13,7 @@ import { errorMessage } from '../lib/api'
 import { isExternalBlocked, playableStartIndex, playableTracks } from '../lib/external'
 import { createAudio, describeAudio, finishAudio } from '../lib/media'
 import { registerPlaybackReset, registerQueueForgetter, useApp } from './store'
+import { t } from '../lib/i18n'
 
 const TICK_MS = 66 // ~15 fps: plenty for karaoke line highlighting and a seek bar
 
@@ -164,10 +165,10 @@ function el(): HTMLAudioElement {
     const code = element.error?.code
     const message =
       code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
-        ? 'Формат не поддерживается или файл недоступен'
+        ? t('Формат не поддерживается или файл недоступен')
         : code === MediaError.MEDIA_ERR_NETWORK
-          ? 'Сетевая ошибка при загрузке аудио'
-          : 'Не удалось воспроизвести трек'
+          ? t('Сетевая ошибка при загрузке аудио')
+          : t('Не удалось воспроизвести трек')
     usePlayer.setState({ error: message, buffering: false, playing: false })
     stopTicker()
   })
@@ -261,7 +262,7 @@ function markExternalBlocked(track: Track): void {
     buffering: false,
     position: 0,
     duration: track.duration ?? 0,
-    error: `YouTube не разрешил встраивание «${track.title}». Откройте видео в YouTube Music.`
+    error: t('YouTube не разрешил встраивание «{0}». Откройте видео в YouTube Music.', { 0: track.title })
   })
 }
 
@@ -317,7 +318,7 @@ async function loadCurrent(autoplay: boolean): Promise<void> {
 
   if (!track) {
     // The track was deleted from the library while queued.
-    usePlayer.setState({ error: 'Трек больше недоступен' })
+    usePlayer.setState({ error: t('Трек больше недоступен') })
     return
   }
 
@@ -354,8 +355,8 @@ async function loadCurrent(autoplay: boolean): Promise<void> {
       buffering: false,
       error:
         track.source === 'list'
-          ? 'У этого трека нет звука — сохранены только название и текст'
-          : 'Не удалось получить ссылку на аудио'
+          ? t('У этого трека нет звука — сохранены только название и текст')
+          : t('Не удалось получить ссылку на аудио')
     })
     return
   }
@@ -437,7 +438,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     if (playable.length === 0) {
       useApp
         .getState()
-        .toast('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.', 'info')
+        .toast(t('Сервис не разрешает встраивание этих видео — откройте их в YouTube Music.'), 'info')
       return
     }
     // Register the tracks first: the queue stores ids only, and the loader looks
@@ -630,7 +631,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     if (isExternalBlocked(live)) {
       useApp
         .getState()
-        .toast('Сервис не разрешает встраивание — откройте это видео в YouTube Music.', 'info')
+        .toast(t('Сервис не разрешает встраивание — откройте это видео в YouTube Music.'), 'info')
       return
     }
     useApp.getState().cacheTracks([live])
@@ -856,7 +857,7 @@ export function restoreSession(session: {
           external: null,
           externalReady: false,
           duration: track.duration ?? 0,
-          error: `YouTube не разрешил встраивание «${track.title}». Откройте видео в YouTube Music.`
+          error: t('YouTube не разрешил встраивание «{0}». Откройте видео в YouTube Music.', { 0: track.title })
         })
         return
       }

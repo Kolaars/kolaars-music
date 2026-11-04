@@ -12,6 +12,7 @@ import { TrackList } from '../components/TrackList'
 import { EmptyState } from '../components/Feedback'
 import { ConfirmModal, PromptModal } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
+import { t } from '../lib/i18n'
 
 export function PlaylistView({ id }: { id: string }): JSX.Element {
   const playlists = useApp((state) => state.playlists)
@@ -55,9 +56,9 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
       <Page>
         <EmptyState
           icon="disc"
-          title="Плейлист не найден"
-          text="Возможно, он был удалён."
-          action={{ label: 'К плейлистам', icon: 'chevron-left', onClick: () => setRoute({ name: 'playlists' }) }}
+          title={t('Плейлист не найден')}
+          text={t('Возможно, он был удалён.')}
+          action={{ label: t('К плейлистам'), icon: 'chevron-left', onClick: () => setRoute({ name: 'playlists' }) }}
         />
       </Page>
     )
@@ -78,12 +79,11 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
               onClick={() => playAll(tracks)}
             >
               <Icon name="play" size={15} />
-              Играть
-            </button>
+              {t('Играть')}</button>
             <button
               type="button"
               className="iconbtn iconbtn--sm"
-              title="Перемешать"
+              title={t('Перемешать')}
               disabled={tracks.length === 0}
               onClick={() => shuffleAll(tracks)}
             >
@@ -98,12 +98,11 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
               }}
             >
               <Icon name="plus" size={15} />
-              Добавить треки
-            </button>
+              {t('Добавить треки')}</button>
             <button
               type="button"
               className="iconbtn iconbtn--sm"
-              title="Экспорт плейлиста"
+              title={t('Экспорт плейлиста')}
               disabled={tracks.length === 0}
               onClick={() => setExporting(true)}
             >
@@ -112,7 +111,7 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
             <button
               type="button"
               className="iconbtn iconbtn--sm"
-              title="Переименовать"
+              title={t('Переименовать')}
               onClick={() => setRenaming(true)}
             >
               <Icon name="pencil" size={16} />
@@ -120,7 +119,7 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
             <button
               type="button"
               className="iconbtn iconbtn--sm"
-              title="Удалить плейлист"
+              title={t('Удалить плейлист')}
               onClick={() => setRemoving(true)}
             >
               <Icon name="trash" size={16} />
@@ -132,10 +131,10 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
       {tracks.length === 0 ? (
         <EmptyState
           icon="disc"
-          title="Плейлист пуст"
-          text="Добавьте треки из каталога или из своей библиотеки."
+          title={t('Плейлист пуст')}
+          text={t('Добавьте треки из каталога или из своей библиотеки.')}
           action={{
-            label: 'Добавить треки',
+            label: t('Добавить треки'),
             icon: 'plus',
             onClick: () => {
               setAddFilter('')
@@ -147,14 +146,14 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
         <TrackList
           tracks={tracks}
           onRemove={(track) => void removeTrackFromPlaylist(playlist.id, track.id)}
-          removeTitle="Убрать из плейлиста"
+          removeTitle={t('Убрать из плейлиста')}
         />
       )}
 
       <PromptModal
         open={renaming}
-        title="Переименовать плейлист"
-        label="Название"
+        title={t('Переименовать плейлист')}
+        label={t('Название')}
         initialValue={playlist.name}
         onCancel={() => setRenaming(false)}
         onConfirm={(value) => {
@@ -165,8 +164,8 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
 
       <ConfirmModal
         open={removing}
-        title="Удалить плейлист?"
-        text={<>Плейлист «{playlist.name}» будет удалён. Треки останутся в каталоге.</>}
+        title={t('Удалить плейлист?')}
+        text={<>{t('Плейлист «{0}» будет удалён. Треки останутся в каталоге.', { 0: playlist.name })}</>}
         onCancel={() => setRemoving(false)}
         onConfirm={() => {
           void deletePlaylist(playlist.id)
@@ -176,15 +175,12 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
 
       <Modal
         open={exporting}
-        title="Экспорт плейлиста"
-        subtitle={`«${playlist.name}» — ${tracks.length} треков`}
+        title={t('Экспорт плейлиста')}
+        subtitle={t('«{0}» — {1} треков', { 0: playlist.name, 1: tracks.length })}
         onClose={() => setExporting(false)}
         width={520}
       >
-        <p className="dialog__text">
-          Список сохраняется с названиями и исполнителями — так его можно передать в другой сервис
-          или открыть в таблице. Ссылки на звук не выгружаются.
-        </p>
+        <p className="dialog__text">{t('Список сохраняется с названиями и исполнителями — так его можно передать в другой сервис или открыть в таблице. Ссылки на звук не выгружаются.')}</p>
         <ul className="source-list">
           {PLAYLIST_FILE_FORMATS.map((format) => (
             <li key={format.value} className="source-list__row">
@@ -201,8 +197,7 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
                 }}
               >
                 <Icon name="download" size={15} />
-                Сохранить
-              </button>
+                {t('Сохранить')}</button>
             </li>
           ))}
         </ul>
@@ -210,8 +205,8 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
 
       <Modal
         open={adding}
-        title="Добавить треки"
-        subtitle={`В плейлист «${playlist.name}»`}
+        title={t('Добавить треки')}
+        subtitle={t('В плейлист «{0}»', { 0: playlist.name })}
         onClose={() => setAdding(false)}
         width={640}
       >
@@ -222,13 +217,13 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
             autoFocus
             value={addFilter}
             spellCheck={false}
-            placeholder="Поиск по каталогу"
+            placeholder={t('Поиск по каталогу')}
             onChange={(event) => setAddFilter(event.target.value)}
           />
         </div>
 
         {candidates.length === 0 ? (
-          <p className="dialog__text">Ничего не найдено.</p>
+          <p className="dialog__text">{t('Ничего не найдено.')}</p>
         ) : (
           <ul className="source-list source-list--scroll">
             {candidates.map((track) => (
@@ -246,8 +241,7 @@ export function PlaylistView({ id }: { id: string }): JSX.Element {
                   onClick={() => void addTracksToPlaylist(playlist.id, [track])}
                 >
                   <Icon name="plus" size={15} />
-                  Добавить
-                </button>
+                  {t('Добавить')}</button>
               </li>
             ))}
           </ul>

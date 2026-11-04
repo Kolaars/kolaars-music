@@ -805,6 +805,66 @@ async function main() {
       process.stdout.write(`${paint(31, ' FAIL ')} playlist write flow (${error.message})\n`)
     }
 
+    /* Language is part of the UI contract: the switcher must apply immediately,
+     * translate dynamic tables (navigation, page titles) and go back cleanly.
+     * This runs after the Russian checks and restores Russian for screenshots. */
+    try {
+      await cdp.evaluate(`(() => {
+        [...document.querySelectorAll('.navitem')]
+          .find((item) => (item.textContent ?? '').includes('Настройки'))?.click()
+      })()`)
+      await cdp.waitFor('the settings view', "!!document.querySelector('.page--settings')", 10_000)
+
+      await cdp.evaluate(`(() => {
+        const select = document.querySelector('.page--settings select[aria-label="Язык интерфейса"]')
+        if (!select) throw new Error('language select not found')
+        select.value = 'en'
+        select.dispatchEvent(new Event('change', { bubbles: true }))
+      })()`)
+      await cdp.waitFor(
+        'the English interface',
+        `(() => {
+          const nav = [...document.querySelectorAll('.navitem')].map((item) => (item.textContent ?? '').trim())
+          return nav.includes('Discover') && document.documentElement.lang === 'en'
+        })()`,
+        10_000
+      )
+      const english = await cdp.evaluate(`(() => ({
+        nav: [...document.querySelectorAll('.navitem')].map((item) => (item.textContent ?? '').trim()),
+        title: document.querySelector('.page--settings .page__title')?.textContent ?? '',
+        lang: document.documentElement.lang
+      }))()`)
+      const englishOk =
+        english.lang === 'en' &&
+        english.title.includes('Settings') &&
+        english.nav.some((item) => item.startsWith('Discover')) &&
+        english.nav.some((item) => item.startsWith('Library'))
+      process.stdout.write(
+        `${englishOk ? paint(32, '  ok  ') : paint(31, ' FAIL ')} the interface switches to English\n`
+      )
+      if (!englishOk) failures.push(`English interface did not apply: ${JSON.stringify(english)}`)
+
+      await sleep(400)
+      await cdp.evaluate(`(() => {
+        const select = document.querySelector('.page--settings select[aria-label="Interface language"]')
+        if (!select) throw new Error('English language select not found')
+        select.value = 'ru'
+        select.dispatchEvent(new Event('change', { bubbles: true }))
+      })()`)
+      await cdp.waitFor(
+        'the Russian interface to return',
+        `(() => {
+          const nav = [...document.querySelectorAll('.navitem')].map((item) => (item.textContent ?? '').trim())
+          return nav.includes('Обзор') && document.documentElement.lang === 'ru'
+        })()`,
+        10_000
+      )
+      process.stdout.write(`${paint(32, '  ok  ')} the interface switches back to Russian\n`)
+    } catch (error) {
+      failures.push(`language switch: ${error.message}`)
+      process.stdout.write(`${paint(31, ' FAIL ')} language switch (${error.message})\n`)
+    }
+
     if (shotDir) {
       mkdirSync(shotDir, { recursive: true })
       const gotoNav = (label) => `(() => {

@@ -39,6 +39,7 @@ import { AlbumView } from './views/AlbumView'
 import { SettingsView } from './views/SettingsView'
 import { AboutView } from './views/AboutView'
 import { ShortcutsView } from './views/ShortcutsView'
+import { resolveLocale, setLocale, t } from './lib/i18n'
 
 const ROUTE_TITLE: Record<Route['name'], string> = {
   discover: 'Обзор',
@@ -93,9 +94,18 @@ export default function App(): JSX.Element {
   const currentTrack = useApp((state) => (currentId ? state.catalogIndex.get(currentId) : undefined))
   const playlists = useApp((state) => state.playlists)
 
+  // A language switch remounts the shell below, so every component reads the
+  // new locale without subscribing to settings individually.
+  const locale = resolveLocale(settings.language)
+  setLocale(locale)
+
   useTheme(settings.theme, settings.accent)
   useMediaSession(currentTrack ?? null)
   useDiscordRpc(ready)
+
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
 
   /* ---------------------------- bootstrap ------------------------- */
 
@@ -196,8 +206,8 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const offline = (): void =>
-      useApp.getState().toast('Нет подключения — доступен офлайн-каталог и загруженные треки', 'info')
-    const online = (): void => useApp.getState().toast('Подключение восстановлено', 'success')
+      useApp.getState().toast(t('Нет подключения — доступен офлайн-каталог и загруженные треки'), 'info')
+    const online = (): void => useApp.getState().toast(t('Подключение восстановлено'), 'success')
     window.addEventListener('offline', offline)
     window.addEventListener('online', online)
     return () => {
@@ -369,9 +379,9 @@ export default function App(): JSX.Element {
         : undefined
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" key={locale}>
       <TitleBar
-        title={ROUTE_TITLE[route.name] ?? 'Kolaars Music'}
+        title={t(ROUTE_TITLE[route.name] ?? 'Kolaars Music')}
         subtitle={subtitle}
         canGoBack={routeStack.length > 0}
         onBack={goBack}
@@ -381,7 +391,7 @@ export default function App(): JSX.Element {
         <Sidebar onNewPlaylist={openNewPlaylist} />
 
         <main className="app-main">
-          {ready ? view : <EmptyState icon="equalizer" title="Запуск Kolaars Music…" text="Читаем каталог и библиотеку." />}
+          {ready ? view : <EmptyState icon="equalizer" title={t('Запуск Kolaars Music…')} text={t('Читаем каталог и библиотеку.')} />}
         </main>
 
         {queueOpen ? <QueuePanel onClose={() => setQueueOpen(false)} /> : null}
@@ -391,7 +401,7 @@ export default function App(): JSX.Element {
             <button
               type="button"
               className="iconbtn iconbtn--sm lyricsdock__close"
-              title="Закрыть панель текста (L)"
+              title={t('Закрыть панель текста (L)')}
               onClick={() => setLyricsOpen(false)}
             >
               ×
@@ -419,10 +429,10 @@ export default function App(): JSX.Element {
 
       <PromptModal
         open={newPlaylistOpen}
-        title="Новый плейлист"
-        label="Название"
-        placeholder="Например: Вечерний джаз"
-        confirmLabel="Создать"
+        title={t('Новый плейлист')}
+        label={t('Название')}
+        placeholder={t('Например: Вечерний джаз')}
+        confirmLabel={t('Создать')}
         onCancel={() => setNewPlaylistOpen(false)}
         onConfirm={(name) => {
           setNewPlaylistOpen(false)

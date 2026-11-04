@@ -13,6 +13,7 @@ import { Icon } from '../components/Icon'
 import { TrackList } from '../components/TrackList'
 import { EmptyState } from '../components/Feedback'
 import { Select } from '../components/Controls'
+import { t } from '../lib/i18n'
 
 type Tab = 'tracks' | 'recent'
 type SortKey = 'added' | 'title' | 'artist' | 'year'
@@ -65,8 +66,8 @@ export function LibraryView(): JSX.Element {
     <Page className="page--library">
       <PageHeader
         icon="library"
-        title="Библиотека"
-        subtitle={`${trackCountLabel(userTracks.length)} — импортированные файлы и офлайн-загрузки`}
+        title={t('Библиотека')}
+        subtitle={t('{0} — импортированные файлы и офлайн-загрузки', { 0: trackCountLabel(userTracks.length) })}
         actions={
           <>
             <button
@@ -75,16 +76,13 @@ export function LibraryView(): JSX.Element {
               onClick={() => useApp.getState().setImportListOpen(true)}
             >
               <Icon name="link" size={15} />
-              Импорт списка
-            </button>
+              {t('Импорт списка')}</button>
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => void importFolder()}>
               <Icon name="folder" size={15} />
-              Папка
-            </button>
+              {t('Папка')}</button>
             <button type="button" className="btn btn--primary btn--sm" onClick={() => void importFiles()}>
               <Icon name="plus" size={15} />
-              Добавить музыку
-            </button>
+              {t('Добавить музыку')}</button>
           </>
         }
       />
@@ -92,9 +90,7 @@ export function LibraryView(): JSX.Element {
       {importProgress ? (
         <div className="progress-banner">
           <Icon name="upload" size={15} />
-          <span>
-            Импорт {importProgress.done} из {importProgress.total}: {importProgress.current}
-          </span>
+          <span>{t('Импорт {0} из {1}: {2}', { 0: importProgress.done, 1: importProgress.total, 2: importProgress.current })}</span>
           <div className="progress-line">
             <div
               className="progress-line__fill"
@@ -112,8 +108,7 @@ export function LibraryView(): JSX.Element {
             onClick={() => setTab('tracks')}
           >
             <Icon name="music" size={15} />
-            Треки
-            <span className="tabs__count">{userTracks.length}</span>
+            {t('Треки')}<span className="tabs__count">{userTracks.length}</span>
           </button>
           <button
             type="button"
@@ -121,8 +116,7 @@ export function LibraryView(): JSX.Element {
             onClick={() => setTab('recent')}
           >
             <Icon name="clock" size={15} />
-            Недавние
-            <span className="tabs__count">{recent.length}</span>
+            {t('Недавние')}<span className="tabs__count">{recent.length}</span>
           </button>
         </nav>
 
@@ -135,19 +129,19 @@ export function LibraryView(): JSX.Element {
                   className="input"
                   value={filter}
                   spellCheck={false}
-                  placeholder="Фильтр"
+                  placeholder={t('Фильтр')}
                   onChange={(event) => setFilter(event.target.value)}
                 />
               </div>
               <Select<SortKey>
-                label="Сортировка"
+                label={t('Сортировка')}
                 value={sort}
                 onChange={setSort}
                 options={[
-                  { value: 'added', label: 'Недавно добавленные' },
-                  { value: 'title', label: 'По названию' },
-                  { value: 'artist', label: 'По исполнителю' },
-                  { value: 'year', label: 'По году' }
+                  { value: 'added', label: t('Недавно добавленные') },
+                  { value: 'title', label: t('По названию') },
+                  { value: 'artist', label: t('По исполнителю') },
+                  { value: 'year', label: t('По году') }
                 ]}
               />
             </>
@@ -159,8 +153,7 @@ export function LibraryView(): JSX.Element {
               onClick={() => void clearHistory()}
             >
               <Icon name="trash" size={15} />
-              Очистить историю
-            </button>
+              {t('Очистить историю')}</button>
           )}
 
           <button
@@ -170,12 +163,11 @@ export function LibraryView(): JSX.Element {
             onClick={() => playAll(list)}
           >
             <Icon name="play" size={15} />
-            Играть
-          </button>
+            {t('Играть')}</button>
           <button
             type="button"
             className="iconbtn iconbtn--sm"
-            title="Перемешать"
+            title={t('Перемешать')}
             disabled={list.length === 0}
             onClick={() => shuffleAll(list)}
           >
@@ -188,16 +180,16 @@ export function LibraryView(): JSX.Element {
         tab === 'tracks' ? (
           <EmptyState
             icon="upload"
-            title="Библиотека пуста"
-            text="Добавьте свои аудиофайлы — Kolaars читает теги, обложки и автоматически подхватывает соседние .lrc-файлы. Или скачайте трек из каталога для прослушивания офлайн."
-            action={{ label: 'Добавить музыку', icon: 'plus', onClick: () => void importFiles() }}
+            title={t('Библиотека пуста')}
+            text={t('Добавьте свои аудиофайлы — Kolaars читает теги, обложки и автоматически подхватывает соседние .lrc-файлы. Или скачайте трек из каталога для прослушивания офлайн.')}
+            action={{ label: t('Добавить музыку'), icon: 'plus', onClick: () => void importFiles() }}
           />
         ) : (
           <EmptyState
             icon="clock"
-            title="История пуста"
-            text="Включите любой трек — недавно прослушанное появится здесь."
-            action={{ label: 'Открыть обзор', icon: 'compass', onClick: () => useApp.getState().setRoute({ name: 'discover' }) }}
+            title={t('История пуста')}
+            text={t('Включите любой трек — недавно прослушанное появится здесь.')}
+            action={{ label: t('Открыть обзор'), icon: 'compass', onClick: () => useApp.getState().setRoute({ name: 'discover' }) }}
           />
         )
       ) : (
@@ -205,9 +197,7 @@ export function LibraryView(): JSX.Element {
       )}
 
       {recent.length > 0 && tab === 'recent' ? (
-        <p className="page__note">
-          Последнее прослушивание: {formatRelativeDate(history[history.length - 1]?.at)}
-        </p>
+        <p className="page__note">{t('Последнее прослушивание: {0}', { 0: formatRelativeDate(history[history.length - 1]?.at) })}</p>
       ) : null}
     </Page>
   )

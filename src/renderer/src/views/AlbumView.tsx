@@ -11,6 +11,7 @@ import { Icon } from '../components/Icon'
 import { Cover } from '../components/Cover'
 import { TrackList } from '../components/TrackList'
 import { EmptyState, TrackListSkeleton } from '../components/Feedback'
+import { t } from '../lib/i18n'
 
 interface AlbumData {
   tracks: Track[]
@@ -43,7 +44,7 @@ export function AlbumView({
         if (cancelled) return
         if (!result) {
           setData(null)
-          setError('Не удалось получить данные записи')
+          setError(t('Не удалось получить данные записи'))
           return
         }
         setData(result)
@@ -74,9 +75,9 @@ export function AlbumView({
       <Page className="page--album">
         <EmptyState
           icon="alert"
-          title="Запись недоступна"
-          text={error ?? 'Не удалось загрузить данные этой записи Internet Archive.'}
-          action={{ label: 'К обзору', icon: 'compass', onClick: () => setRoute({ name: 'discover' }) }}
+          title={t('Запись недоступна')}
+          text={error ?? t('Не удалось загрузить данные этой записи Internet Archive.')}
+          action={{ label: t('К обзору'), icon: 'compass', onClick: () => setRoute({ name: 'discover' }) }}
         />
       </Page>
     )
@@ -105,20 +106,17 @@ export function AlbumView({
           <div className="albumhero__actions">
             <button type="button" className="btn btn--primary" onClick={() => playAll(data.tracks)}>
               <Icon name="play" size={16} />
-              Слушать
-            </button>
+              {t('Слушать')}</button>
             <button type="button" className="btn btn--ghost" onClick={() => shuffleAll(data.tracks)}>
               <Icon name="shuffle" size={16} />
-              Перемешать
-            </button>
+              {t('Перемешать')}</button>
             <button
               type="button"
               className="btn btn--ghost"
               onClick={() => void api.app.openExternal(`https://archive.org/details/${encodeURIComponent(identifier)}`)}
             >
               <Icon name="external" size={16} />
-              На сайте архива
-            </button>
+              {t('На сайте архива')}</button>
           </div>
         </div>
       </header>

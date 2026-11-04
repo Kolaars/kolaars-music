@@ -6,6 +6,7 @@
  */
 
 import type { KolaarsApi } from '@shared/api'
+import { t } from './i18n'
 
 export const api: KolaarsApi = window.kolaars
 
@@ -13,7 +14,7 @@ export const api: KolaarsApi = window.kolaars
 export function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (typeof error === 'string') return error
-  return 'Неизвестная ошибка'
+  return t('Неизвестная ошибка')
 }
 
 /** Runs a promise, reporting failures through `onError` instead of throwing. */

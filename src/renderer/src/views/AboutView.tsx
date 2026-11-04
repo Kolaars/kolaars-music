@@ -7,6 +7,7 @@ import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { SectionCard } from '../components/Controls'
 import type { BundledSong } from '../../../preload/index'
+import { t } from '../lib/i18n'
 
 interface PackInfo {
   name: string
@@ -51,7 +52,7 @@ export function AboutView(): JSX.Element {
 
   return (
     <Page className="page--about">
-      <PageHeader icon="info" title="О программе" subtitle="Открытый музыкальный проигрыватель с открытыми текстами" />
+      <PageHeader icon="info" title={t('О программе')} subtitle={t('Открытый музыкальный проигрыватель с открытыми текстами')} />
 
       <section className="abouthero">
         <span className="abouthero__logo">
@@ -59,10 +60,7 @@ export function AboutView(): JSX.Element {
         </span>
         <div className="abouthero__text">
           <h1>Kolaars Music</h1>
-          <p>
-            Версия {appInfo?.version ?? '1.2.2'} · бесплатно, с открытым исходным кодом, без регистрации и
-            отслеживания.
-          </p>
+          <p>{t('Версия {0} · бесплатно, с открытым исходным кодом, без регистрации и отслеживания.', { 0: appInfo?.version ?? '1.3.3' })}</p>
           <div className="abouthero__badges">
             <span className="badge badge--accent">
               <Icon name="shield" size={12} />
@@ -71,24 +69,19 @@ export function AboutView(): JSX.Element {
             <span className="badge">Electron {appInfo?.electron ?? '—'}</span>
             <span className="badge">Chromium {appInfo?.chrome ?? '—'}</span>
             <span className="badge">Node {appInfo?.node ?? '—'}</span>
-            <span className="badge">{appInfo?.seedTracks ?? 0} треков в каталоге</span>
+            <span className="badge">{t('{0} треков в каталоге', { 0: appInfo?.seedTracks ?? 0 })}</span>
           </div>
         </div>
       </section>
 
-      <SectionCard icon="music" title="Откуда музыка" description="Только легальные, свободно распространяемые записи">
-        <p className="prose">
-          Встроенный каталог собран из открытых коллекций Internet Archive. Это оцифрованные шеллачные пластинки
-          Great&nbsp;78 Project, записи Musopen, переданные в общественное достояние, и релизы независимых лейблов
-          (netlabels) под лицензиями Creative&nbsp;Commons. Каждая запись содержит ссылку на первоисточник и
-          сведения о лицензии — их видно в карточке трека и на экране воспроизведения.
-        </p>
+      <SectionCard icon="music" title={t('Откуда музыка')} description={t('Только легальные, свободно распространяемые записи')}>
+        <p className="prose">{t('Встроенный каталог собран из открытых коллекций Internet Archive. Это оцифрованные шеллачные пластинки Great 78 Project, записи Musopen, переданные в общественное достояние, и релизы независимых лейблов (netlabels) под лицензиями Creative Commons. Каждая запись содержит ссылку на первоисточник и сведения о лицензии — их видно в карточке трека и на экране воспроизведения.')}</p>
         <ul className="linklist">
           {LINKS.map((link) => (
             <li key={link.url}>
               <button type="button" className="linklike" onClick={() => void api.app.openExternal(link.url)}>
                 <Icon name="external" size={14} />
-                {link.label}
+                {t(link.label)}
               </button>
             </li>
           ))}
@@ -97,18 +90,17 @@ export function AboutView(): JSX.Element {
 
       <SectionCard
         icon="lyrics"
-        title="Тексты песен"
-        description={pack ? `${pack.name} v${pack.version} · ${pack.license}` : 'Загрузка сведений о паке…'}
+        title={t('Тексты песен')}
+        description={pack ? `${pack.name} v${pack.version} · ${pack.license}` : t('Загрузка сведений о паке…')}
       >
         <p className="prose">
           {pack?.note ??
-            'Сборник текстов песен, находящихся в общественном достоянии, входит в поставку и работает без интернета.'}
+            t('Сборник текстов песен, находящихся в общественном достоянии, входит в поставку и работает без интернета.')}
         </p>
         <p className="prose prose--muted">
-          Онлайн-поиск текстов идёт через открытую базу <strong>LRCLIB</strong> (синхронизированные тексты от
-          сообщества) и <strong>Wikisource</strong> (проверенные тексты в общественном достоянии). Обращения
-          выполняются только по вашему действию и отключаются в настройках.
-        </p>
+          {t('Онлайн-поиск текстов идёт через открытую базу')} <strong>LRCLIB</strong>{' '}
+          {t('(синхронизированные тексты от сообщества) и')} <strong>Wikisource</strong>{' '}
+          {t('(проверенные тексты в общественном достоянии). Обращения выполняются только по вашему действию и отключаются в настройках.')}</p>
 
         {pack && pack.songs.length > 0 ? (
           <>
@@ -118,7 +110,7 @@ export function AboutView(): JSX.Element {
                 className="input"
                 value={filter}
                 spellCheck={false}
-                placeholder={`Поиск среди ${pack.count} песен`}
+                placeholder={t('Поиск среди {0} песен', { 0: pack.count })}
                 onChange={(event) => setFilter(event.target.value)}
               />
             </div>
@@ -135,36 +127,19 @@ export function AboutView(): JSX.Element {
               ))}
             </ul>
             {pack.songs.length > songs.length ? (
-              <p className="page__note">Показаны первые {songs.length} совпадений — уточните запрос.</p>
+              <p className="page__note">{t('Показаны первые {0} совпадений — уточните запрос.', { 0: songs.length })}</p>
             ) : null}
           </>
         ) : null}
       </SectionCard>
 
-      <SectionCard icon="shield" title="Конфиденциальность" description="Никаких аккаунтов и телеметрии">
+      <SectionCard icon="shield" title={t('Конфиденциальность')} description={t('Никаких аккаунтов и телеметрии')}>
         <p className="prose">
-          Kolaars Music не собирает статистику и не отправляет данные на наши серверы — их попросту нет. Вся
-          библиотека, плейлисты, тексты и настройки хранятся у вас на диске: по одному файлу{' '}
-          <code>kolaars.json</code> на профиль. Профили — это просто отдельные библиотеки на одном
-          компьютере; входа, пароля и синхронизации нет. Сеть используется только для обращения к открытым
-          API Internet Archive, LRCLIB и Wikisource, а также — если вы сами подключили «Источники» — к
-          официальным API YouTube и SoundCloud. Ключи этих API шифруются средствами ОС и не покидают
-          компьютер.
-        </p>
-        <p className="prose prose--muted">
-          Импорт списка треков сопоставляет названия и не обращается к закрытым сервисам (Яндекс.Музыка,
-          Spotify, Genius). Для музыки, защищённой авторским правом, свободного источника звука не
-          существует — такая строка сохраняется как название и текст без аудио.
-        </p>
-        <p className="prose prose--muted">
-          В «Источниках» звук играет официальный встроенный плеер сервиса. Приложение не извлекает
-          аудиопоток, не обходит DRM и не скачивает защищённые треки; реклама и ограничения сервиса
-          действуют как обычно.
-        </p>
-        <p className="prose prose--muted">
-          Программа предоставляется «как есть». Ответственность за соблюдение условий лицензий на отдельные
-          записи и тексты лежит на источнике; ссылки и лицензии указаны для каждой записи.
-        </p>
+          {t('Kolaars Music не собирает статистику и не отправляет данные на наши серверы — их попросту нет. Вся библиотека, плейлисты, тексты и настройки хранятся у вас на диске: по одному файлу')}{' '}
+          <code>kolaars.json</code> {t('на профиль. Профили — это просто отдельные библиотеки на одном компьютере; входа, пароля и синхронизации нет. Сеть используется только для обращения к открытым API Internet Archive, LRCLIB и Wikisource, а также — если вы сами подключили «Источники» — к официальным API YouTube и SoundCloud. Ключи этих API шифруются средствами ОС и не покидают компьютер.')}</p>
+        <p className="prose prose--muted">{t('Импорт списка треков сопоставляет названия и не обращается к закрытым сервисам (Яндекс.Музыка, Spotify, Genius). Для музыки, защищённой авторским правом, свободного источника звука не существует — такая строка сохраняется как название и текст без аудио.')}</p>
+        <p className="prose prose--muted">{t('В «Источниках» звук играет официальный встроенный плеер сервиса. Приложение не извлекает аудиопоток, не обходит DRM и не скачивает защищённые треки; реклама и ограничения сервиса действуют как обычно.')}</p>
+        <p className="prose prose--muted">{t('Программа предоставляется «как есть». Ответственность за соблюдение условий лицензий на отдельные записи и тексты лежит на источнике; ссылки и лицензии указаны для каждой записи.')}</p>
       </SectionCard>
     </Page>
   )

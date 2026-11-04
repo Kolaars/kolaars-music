@@ -1,5 +1,7 @@
 /** Formatting helpers used across the UI. */
 
+import { getLocale, localeTag, t } from './i18n'
+
 export function formatTime(seconds: number | null | undefined): string {
   if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return '--:--'
   const total = Math.floor(seconds)
@@ -12,7 +14,7 @@ export function formatTime(seconds: number | null | undefined): string {
 
 export function formatBytes(bytes: number | null | undefined): string {
   if (!bytes || !Number.isFinite(bytes) || bytes <= 0) return '—'
-  const units = ['Б', 'КБ', 'МБ', 'ГБ']
+  const units = [t('Б'), t('КБ'), t('МБ'), t('ГБ')]
   let value = bytes
   let unit = 0
   while (value >= 1024 && unit < units.length - 1) {
@@ -29,15 +31,23 @@ export function formatRelativeDate(timestamp: number | null | undefined): string
   const hour = 60 * minute
   const day = 24 * hour
 
-  if (diff < minute) return 'только что'
-  if (diff < hour) return plural(Math.floor(diff / minute), 'минуту', 'минуты', 'минут') + ' назад'
-  if (diff < day) return plural(Math.floor(diff / hour), 'час', 'часа', 'часов') + ' назад'
-  if (diff < 30 * day) return plural(Math.floor(diff / day), 'день', 'дня', 'дней') + ' назад'
-  return new Date(timestamp).toLocaleDateString('ru-RU')
+  if (diff < minute) return t('только что')
+  const relative = new Intl.RelativeTimeFormat(localeTag(), { numeric: 'auto' })
+  if (diff < hour) return relative.format(-Math.floor(diff / minute), 'minute')
+  if (diff < day) return relative.format(-Math.floor(diff / hour), 'hour')
+  if (diff < 30 * day) return relative.format(-Math.floor(diff / day), 'day')
+  return new Date(timestamp).toLocaleDateString(localeTag())
 }
 
-/** Russian plural form selection: plural(3, 'трек', 'трека', 'треков'). */
+/**
+ * Plural form selection.
+ *
+ * Russian needs three forms (`plural(3, 'трек', 'трека', 'треков')`); English
+ * only distinguishes singular from plural, so the `many` form is used for
+ * everything except one.
+ */
 export function plural(count: number, one: string, few: string, many: string): string {
+  if (getLocale() === 'en') return `${count} ${count === 1 ? one : many}`
   const abs = Math.abs(count) % 100
   const last = abs % 10
   if (abs > 10 && abs < 20) return `${count} ${many}`
@@ -47,18 +57,18 @@ export function plural(count: number, one: string, few: string, many: string): s
 }
 
 export function trackCountLabel(count: number): string {
-  return plural(count, 'трек', 'трека', 'треков')
+  return plural(count, t('трек'), t('трека'), t('треков'))
 }
 
 /** A short, human label for where a track came from. */
 export function sourceLabel(source: string): string {
   switch (source) {
     case 'local':
-      return 'Локальный файл'
+      return t('Локальный файл')
     case 'online':
       return 'Internet Archive'
     case 'seed':
-      return 'Каталог Kolaars'
+      return t('Каталог Kolaars')
     default:
       return source
   }

@@ -235,8 +235,13 @@ export interface QueueItem {
 
 export type ThemeMode = 'dark' | 'light' | 'system'
 
+/** Interface language. `system` follows the operating system on next launch. */
+export type LanguageSetting = 'ru' | 'en' | 'system'
+
 export interface Settings {
   theme: ThemeMode
+  /** Interface language: Russian, English, or the operating system's choice. */
+  language: LanguageSetting
   /** Accent colour as a hex string. */
   accent: string
   /** Cross-fade between tracks, in seconds (0 = off). */

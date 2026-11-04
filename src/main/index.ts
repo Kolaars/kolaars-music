@@ -12,6 +12,7 @@ import { app, BrowserWindow, nativeImage, session, shell } from 'electron'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { EV } from '@shared/ipc'
+import { resolveLocale, setLocale } from '@shared/i18n'
 import { registerMediaProtocol, registerMediaScheme } from './media'
 import { registerIpc } from './ipc'
 import { shutdownDiscordRpc } from './discordRpc'
@@ -205,6 +206,7 @@ if (!app.requestSingleInstanceLock()) {
     registerMediaProtocol()
 
     const db = await store.loadDb()
+    setLocale(resolveLocale(db.settings.language, app.getLocale()))
     await restoreDownloads(resolveDownloadDir(db.settings.downloadDir))
 
     registerIpc(() => mainWindow)

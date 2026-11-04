@@ -4,6 +4,7 @@ import type { JSX } from 'react'
 import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { SectionCard } from '../components/Controls'
+import { t } from '../lib/i18n'
 
 interface Shortcut {
   keys: string[]
@@ -60,21 +61,21 @@ export function ShortcutsView(): JSX.Element {
     <Page className="page--shortcuts">
       <PageHeader
         icon="bolt"
-        title="Клавиатурные сокращения"
-        subtitle="Работают везде, кроме полей ввода и открытых диалогов"
+        title={t('Клавиатурные сокращения')}
+        subtitle={t('Работают везде, кроме полей ввода и открытых диалогов')}
       />
 
       {GROUPS.map((group) => (
-        <SectionCard key={group.title} icon={group.icon} title={group.title}>
+        <SectionCard key={group.title} icon={group.icon} title={t(group.title)}>
           <ul className="shortcuts">
             {group.items.map((item) => (
               <li className="shortcuts__row" key={item.label}>
                 <span className="shortcuts__keys">
                   {item.keys.map((key) => (
-                    <kbd key={key}>{key}</kbd>
+                    <kbd key={key}>{t(key)}</kbd>
                   ))}
                 </span>
-                <span className="shortcuts__label">{item.label}</span>
+                <span className="shortcuts__label">{t(item.label)}</span>
               </li>
             ))}
           </ul>
@@ -82,9 +83,7 @@ export function ShortcutsView(): JSX.Element {
       ))}
 
       <p className="page__note">
-        <Icon name="info" size={14} /> Медиа-клавиши клавиатуры и системные элементы управления
-        воспроизведением (Windows) поддерживаются автоматически.
-      </p>
+        <Icon name="info" size={14} /> {t('Медиа-клавиши клавиатуры и системные элементы управления воспроизведением (Windows) поддерживаются автоматически.')}</p>
     </Page>
   )
 }

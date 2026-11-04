@@ -15,6 +15,7 @@ import { usePlayer } from '../state/player'
 import { Cover } from './Cover'
 import { Icon } from './Icon'
 import { TrackMenu } from './TrackMenu'
+import { t } from '../lib/i18n'
 
 export interface TrackListProps {
   tracks: Track[]
@@ -40,7 +41,7 @@ export function TrackList({
   header = true,
   onPlay,
   onRemove,
-  removeTitle = 'Убрать',
+  removeTitle = t('Убрать'),
   renderActions
 }: TrackListProps): JSX.Element {
   if (tracks.length === 0 && empty) return <>{empty}</>
@@ -53,13 +54,13 @@ export function TrackList({
   const variant = showCover && showAlbum ? 'cover-album' : showCover ? 'cover' : showAlbum ? 'album' : 'plain'
 
   return (
-    <div className={`tracklist tracklist--${variant}`} role="table" aria-label="Треки">
+    <div className={`tracklist tracklist--${variant}`} role="table" aria-label={t('Треки')}>
       {header ? (
         <div className="tracklist__head" role="row">
           <span className="tracklist__cell tracklist__cell--index">#</span>
           {showCover ? <span className="tracklist__cell tracklist__cell--cover" /> : null}
-          <span className="tracklist__cell">Название</span>
-          {showAlbum ? <span className="tracklist__cell tracklist__cell--album">Альбом</span> : null}
+          <span className="tracklist__cell">{t('Название')}</span>
+          {showAlbum ? <span className="tracklist__cell tracklist__cell--album">{t('Альбом')}</span> : null}
           <span className="tracklist__cell tracklist__cell--time">
             <Icon name="clock" size={14} />
           </span>
@@ -130,10 +131,10 @@ function TrackRow({
         className="trackrow__index"
         title={
           blocked
-            ? 'Недоступно для встраивания — открыть в YouTube Music'
+            ? t('Недоступно для встраивания — открыть в YouTube Music')
             : isCurrent && playing
-              ? 'Пауза'
-              : 'Воспроизвести'
+              ? t('Пауза')
+              : t('Воспроизвести')
         }
         onClick={() => (isCurrent && !blocked ? usePlayer.getState().toggle() : play())}
       >
@@ -159,7 +160,7 @@ function TrackRow({
         <button
           type="button"
           className="trackrow__titlebtn"
-          title={blocked ? 'Недоступно для встраивания — открыть в YouTube Music' : track.title}
+          title={blocked ? t('Недоступно для встраивания — открыть в YouTube Music') : track.title}
           onClick={play}
         >
           <span className="trackrow__title">{track.title}</span>
@@ -170,41 +171,38 @@ function TrackRow({
         </span>
         <span className="trackrow__badges">
           {track.external ? (
-            <span className="badge" title="Воспроизводится официальным плеером сервиса">
+            <span className="badge" title={t('Воспроизводится официальным плеером сервиса')}>
               <Icon name="external" size={11} />
               {track.external.provider === 'youtube' ? 'YouTube' : 'SoundCloud'}
             </span>
           ) : null}
           {blocked ? (
             <>
-              <span className="badge badge--error" title="Сервис не разрешает встраивание этого видео">
+              <span className="badge badge--error" title={t('Сервис не разрешает встраивание этого видео')}>
                 <Icon name="alert" size={11} />
-                не встраивается
-              </span>
+                {t('не встраивается')}</span>
               <button
                 type="button"
                 className="badge badge--accent trackrow__external"
-                title="Открыть видео в YouTube Music"
+                title={t('Открыть видео в YouTube Music')}
                 onClick={() => openExternalTrack(track)}
               >
                 <Icon name="external" size={11} />
-                открыть в YouTube Music
-              </button>
+                {t('открыть в YouTube Music')}</button>
             </>
           ) : null}
           {track.offline ? (
-            <span className="badge" title="Доступно офлайн">
+            <span className="badge" title={t('Доступно офлайн')}>
               <Icon name="offline" size={11} />
-              офлайн
-            </span>
+              {t('офлайн')}</span>
           ) : null}
           {hasLyrics ? (
-            <span className="badge badge--accent" title="Есть сохранённый текст">
+            <span className="badge badge--accent" title={t('Есть сохранённый текст')}>
               <Icon name="lyrics" size={11} />
             </span>
           ) : null}
           {unavailable ? (
-            <span className="badge" title="Ссылка на аудио недоступна">
+            <span className="badge" title={t('Ссылка на аудио недоступна')}>
               <Icon name="alert" size={11} />
             </span>
           ) : null}
@@ -219,7 +217,7 @@ function TrackRow({
         <button
           type="button"
           className={`iconbtn iconbtn--sm trackrow__fav${favorite ? ' iconbtn--active' : ''}`}
-          title={favorite ? 'Убрать из избранного' : 'В избранное'}
+          title={favorite ? t('Убрать из избранного') : t('В избранное')}
           onClick={() => void useApp.getState().toggleFavorite(track.id)}
         >
           <Icon name={favorite ? 'heart-filled' : 'heart'} size={16} />

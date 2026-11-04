@@ -14,6 +14,7 @@
 import type { Client as DiscordRpcClient, SetActivity } from '@xhayper/discord-rpc'
 import type { DiscordPresence, DiscordRpcState, DiscordRpcStatus } from '@shared/types'
 import { buildDiscordButtons } from '@shared/discordPresence'
+import { t } from '@shared/i18n'
 
 type StatusSink = (status: DiscordRpcStatus) => void
 
@@ -77,24 +78,24 @@ function scheduleRetry(): void {
 function friendlyError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? '')
   if (/COULD_NOT_CONNECT|COULD_NOT_FIND_CLIENT|Could not connect/i.test(message)) {
-    return 'Discord не запущен или RPC недоступен'
+    return t('Discord не запущен или RPC недоступен')
   }
   if (/INVALID_CLIENTID|Invalid Client ID|invalid client/i.test(message)) {
-    return 'Discord отклонил Application ID'
+    return t('Discord отклонил Application ID')
   }
   if (/RATE_LIMITED|rate limit/i.test(message)) {
-    return 'Discord временно ограничил обновления'
+    return t('Discord временно ограничил обновления')
   }
   if (/CONNECTION_TIMEOUT|timed out/i.test(message)) {
-    return 'Discord не ответил вовремя'
+    return t('Discord не ответил вовремя')
   }
   if (/CONNECTION_ENDED|Connection ended/i.test(message)) {
-    return 'Discord закрыл соединение — проверьте Application ID'
+    return t('Discord закрыл соединение — проверьте Application ID')
   }
   if (/MODULE_NOT_FOUND|Cannot find module/i.test(message)) {
-    return 'Модуль Discord RPC не найден в сборке'
+    return t('Модуль Discord RPC не найден в сборке')
   }
-  return 'Не удалось подключиться к Discord'
+  return t('Не удалось подключиться к Discord')
 }
 
 /**
@@ -235,7 +236,7 @@ async function connect(): Promise<void> {
       if (currentGeneration !== generation || client !== next) return
       client = null
       if (!enabled) return
-      setState('error', 'Соединение с Discord потеряно')
+      setState('error', t('Соединение с Discord потеряно'))
       scheduleRetry()
     })
 
@@ -297,13 +298,13 @@ export function configureDiscordRpc(nextEnabled: boolean, nextClientId: string):
 
   if (!clientId) {
     void stopClient()
-    setState('missing-client-id', 'Укажите Application ID приложения Discord')
+    setState('missing-client-id', t('Укажите Application ID приложения Discord'))
     return discordRpcStatus()
   }
 
   if (!CLIENT_ID_RE.test(clientId)) {
     void stopClient()
-    setState('error', 'Application ID должен состоять из 17–20 цифр')
+    setState('error', t('Application ID должен состоять из 17–20 цифр'))
     return discordRpcStatus()
   }
 
