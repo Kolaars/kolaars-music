@@ -163,6 +163,10 @@ export function buildAppMenu(getWindow: () => BrowserWindow | null): void {
         },
         { type: 'separator' },
         {
+          label: t('Проверить обновления…'),
+          click: command('check-updates')
+        },
+        {
           label: isMac ? t('О Kolaars Music') : t('О программе'),
           click: () => getWindow()?.webContents.send(EV.navigate, 'about')
         }

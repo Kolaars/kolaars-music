@@ -82,6 +82,7 @@ import {
   type PlaylistFileFormat
 } from '@shared/tracklist'
 import { importTrackList } from './importList'
+import { checkForUpdates, downloadUpdate, installUpdate, setAutoCheckEnabled, updateStatus } from './updates'
 
 /* ------------------------------------------------------------------ */
 /* Plumbing                                                            */
@@ -178,6 +179,16 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     return true
   })
 
+  /* --------------------------- updates -------------------------- */
+
+  handle(CH.updateStatus, () => updateStatus())
+
+  handle(CH.updateCheck, (_event, manual = true) => checkForUpdates(manual !== false))
+
+  handle(CH.updateDownload, () => downloadUpdate())
+
+  handle(CH.updateInstall, () => installUpdate())
+
   /* --------------------------- Discord ------------------------- */
 
   handle(CH.discordRpcConfigure, (_event, enabled: boolean, clientId: string): DiscordRpcStatus =>
@@ -206,7 +217,9 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
   })
 
   handle(CH.dbSettings, async (_event, patch: Partial<Settings>): Promise<Settings> => {
-    const previousLanguage = (await store.loadDb()).settings.language
+    const previous = await store.loadDb()
+    const previousLanguage = previous.settings.language
+    const previousAutoCheck = previous.settings.autoCheckUpdates
     const settings = await store.updateDb((db) => {
       db.settings = {
         ...db.settings,
@@ -218,6 +231,9 @@ export function registerIpc(windowGetter: () => BrowserWindow | null): void {
     if (settings.language !== previousLanguage) {
       setLocale(resolveLocale(settings.language, app.getLocale()))
       buildAppMenu(getWindow)
+    }
+    if (settings.autoCheckUpdates !== previousAutoCheck) {
+      setAutoCheckEnabled(settings.autoCheckUpdates)
     }
     return settings
   })

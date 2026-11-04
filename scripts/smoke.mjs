@@ -216,7 +216,12 @@ function launch() {
     [`--remote-debugging-port=${PORT}`, `--user-data-dir=${userDataDir}`, '.'],
     {
       cwd: root,
-      env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' },
+      env: {
+        ...process.env,
+        ELECTRON_ENABLE_LOGGING: '1',
+        // Keep the smoke run deterministic: no GitHub version check mid-test.
+        KOLAARS_DISABLE_UPDATE_CHECK: '1'
+      },
       stdio: ['ignore', 'pipe', 'pipe']
     }
   )
@@ -404,8 +409,9 @@ const INTERACTIONS = [
       const items = [...document.querySelectorAll('.navitem')]
       items.find((i) => (i.textContent ?? '').includes('Настройки'))?.click()
     })()`,
-    assert: "!!document.querySelector('.page--settings')",
-    assertName: '.page--settings is on screen'
+    assert:
+      "!!document.querySelector('.page--settings') && [...document.querySelectorAll('.panel')].some((panel) => (panel.textContent ?? '').includes('Обновления') && !!panel.querySelector('.switch'))",
+    assertName: '.page--settings is on screen with the updates panel'
   },
   {
     name: 'the sources view renders its connection panel',

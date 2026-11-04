@@ -278,7 +278,9 @@ async function main() {
 
   const launch = (port) => {
     child = spawn(exe, [`--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`], {
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // The packaged smoke test must never talk to GitHub on its own.
+      env: { ...process.env, KOLAARS_DISABLE_UPDATE_CHECK: '1' }
     })
     child.stdout.on('data', (chunk) => output.push(String(chunk)))
     child.stderr.on('data', (chunk) => output.push(String(chunk)))

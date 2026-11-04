@@ -63,6 +63,51 @@ export interface AppInfo {
   lyricsPack: { name: string; version: string; license: string; note: string; count: number }
 }
 
+/** Download progress reported by the updater, in bytes. */
+export interface UpdateProgress {
+  /** Whole percent, 0–100. */
+  percent: number
+  transferred: number
+  total: number
+  bytesPerSecond: number
+}
+
+export type UpdateStatusKind =
+  | 'idle'
+  | 'checking'
+  | 'up-to-date'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'error'
+
+/**
+ * State of the built-in updater.
+ *
+ * The UI renders this as-is; it is pushed by the main process and also
+ * returned by `check`/`download` so a caller never has to guess what happened.
+ */
+export interface UpdateStatus {
+  status: UpdateStatusKind
+  currentVersion: string
+  /** Version offered by the latest release, when known. */
+  version?: string
+  /** Public release page, always safe to open in the browser. */
+  releaseUrl?: string
+  /** True when this build can download and install the update itself. */
+  canInstall: boolean
+  /**
+   * Why self-install is unavailable: the portable build cannot replace its
+   * own executable, a dev run has no update metadata, and other platforms are
+   * not shipped with an updater.
+   */
+  installReason?: 'portable' | 'development' | 'unsupported'
+  progress?: UpdateProgress
+  error?: string
+  /** When the last successful check finished. */
+  checkedAt?: number
+}
+
 export interface ProfilesState {
   activeId: string
   profiles: Profile[]
@@ -118,6 +163,17 @@ export interface KolaarsApi {
     setActivity: (presence: DiscordPresence | null) => Promise<DiscordRpcStatus>
     status: () => Promise<DiscordRpcStatus>
     onStatus: (cb: (status: DiscordRpcStatus) => void) => () => void
+  }
+
+  updates: {
+    status: () => Promise<UpdateStatus>
+    /** Checks GitHub for a newer release. `manual` makes errors visible. */
+    check: (manual?: boolean) => Promise<UpdateStatus>
+    /** Downloads the offered release when this build can install it. */
+    download: () => Promise<UpdateStatus>
+    /** Quits, installs the downloaded release and starts the app again. */
+    install: () => Promise<boolean>
+    onStatus: (cb: (status: UpdateStatus) => void) => () => void
   }
 
   store: {

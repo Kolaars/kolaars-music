@@ -9,6 +9,8 @@ import { Page, PageHeader } from '../components/Page'
 import { Icon } from '../components/Icon'
 import { Field, Range, SectionCard, Select, Switch } from '../components/Controls'
 import { ConfirmModal, PromptModal } from '../components/Dialogs'
+import { useUpdates } from '../state/updates'
+import { formatBytes, formatRelativeDate } from '../lib/format'
 import { t } from '../lib/i18n'
 
 const ACCENTS = ['#7c5cff', '#4f8cff', '#22c1a4', '#f4b740', '#ff6b6b', '#ff5ea8', '#8ce563', '#00b8d9']
@@ -271,6 +273,8 @@ export function SettingsView(): JSX.Element {
         </SectionCard>
       )}
 
+      {isAndroid ? null : <UpdatesCard />}
+
       <SectionCard icon="shield" title={t('Правовая информация')} description={t('Лицензии, источники и благодарности')}>
         <Field label={t('Код приложения')} hint={t('Kolaars Music распространяется под лицензией MIT')}>
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRoute({ name: 'about' })}>
@@ -279,6 +283,167 @@ export function SettingsView(): JSX.Element {
         </Field>
       </SectionCard>
     </Page>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Updates                                                             */
+/* ------------------------------------------------------------------ */
+
+function UpdatesCard(): JSX.Element {
+  const settings = useApp((state) => state.settings)
+  const updateSettings = useApp((state) => state.updateSettings)
+  const update = useUpdates((state) => state.update)
+  const check = useUpdates((state) => state.check)
+  const download = useUpdates((state) => state.download)
+  const install = useUpdates((state) => state.install)
+  const openRelease = useUpdates((state) => state.openRelease)
+
+  useEffect(() => {
+    void useUpdates.getState().init()
+  }, [])
+
+  const busy = update.status === 'checking' || update.status === 'downloading'
+  const version = update.version ?? ''
+  const percent = update.progress?.percent ?? 0
+  const canInstall = update.canInstall
+
+  const statusLabel = ((): string => {
+    switch (update.status) {
+      case 'checking':
+        return t('Проверяем…')
+      case 'available':
+        return t('Доступна версия {0}', { 0: version })
+      case 'up-to-date':
+        return t('У вас последняя версия')
+      case 'downloading':
+        return t('Загружаем обновление… {0}%', { 0: percent })
+      case 'ready':
+        return t('Обновление скачано')
+      case 'error':
+        return t('Не удалось проверить обновление')
+      default:
+        return t('Проверка ещё не выполнялась')
+    }
+  })()
+
+  const statusHint = ((): string => {
+    switch (update.status) {
+      case 'checking':
+        return t('Запрашиваем последний выпуск на GitHub.')
+      case 'available':
+        return canInstall
+          ? t('Нажмите «Скачать обновление» — установка займёт пару минут.')
+          : t('Скачайте файл со страницы релиза и запустите его.')
+      case 'up-to-date':
+        return update.checkedAt
+          ? t('Проверено {0}.', { 0: formatRelativeDate(update.checkedAt) })
+          : t('Можно проверить вручную в любой момент.')
+      case 'downloading':
+        return t('{0} из {1}', {
+          0: formatBytes(update.progress?.transferred),
+          1: formatBytes(update.progress?.total)
+        })
+      case 'ready':
+        return t('Приложение перезапустится и заменит файлы. Библиотека и настройки сохранятся.')
+      case 'error':
+        return update.error ?? t('Не удалось проверить обновления.')
+      default:
+        return t('Можно проверить вручную в любой момент.')
+    }
+  })()
+
+  const statusClass =
+    update.status === 'error'
+      ? 'badge badge--error'
+      : update.status === 'up-to-date' || update.status === 'ready'
+        ? 'badge badge--done'
+        : update.status === 'available' || update.status === 'checking' || update.status === 'downloading'
+          ? 'badge badge--accent'
+          : 'badge'
+
+  return (
+    <SectionCard
+      icon="refresh"
+      title={t('Обновления')}
+      description={t('Новая версия скачивается и устанавливается прямо из приложения')}
+    >
+      <Field label={t('Текущая версия')} hint={t('Номер этой сборки Kolaars Music')}>
+        <span className="badge">{update.currentVersion || '—'}</span>
+      </Field>
+
+      <Field
+        label={t('Автоматическая проверка')}
+        hint={t('При запуске приложение спрашивает у GitHub, есть ли новая версия. Данные о вас и вашей библиотеке не отправляются.')}
+      >
+        <Switch
+          label={t('Автоматическая проверка')}
+          checked={settings.autoCheckUpdates}
+          onChange={(value) => void updateSettings({ autoCheckUpdates: value })}
+        />
+      </Field>
+
+      <Field label={t('Состояние')} hint={statusHint}>
+        <span className={statusClass}>{statusLabel}</span>
+      </Field>
+
+      {update.status === 'downloading' ? (
+        <div className="updateprogress" aria-hidden="true">
+          <span style={{ width: `${Math.max(2, percent)}%` }} />
+        </div>
+      ) : null}
+
+      <div className="field__row">
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          disabled={busy}
+          onClick={() => void check(true)}
+        >
+          <Icon name="refresh" size={15} />
+          {update.status === 'checking' ? t('Проверяем…') : t('Проверить обновления')}
+        </button>
+
+        {update.status === 'available' && canInstall ? (
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => void download()}>
+            <Icon name="download" size={15} />
+            {t('Скачать обновление')}
+          </button>
+        ) : null}
+
+        {update.status === 'available' && !canInstall ? (
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => void openRelease()}>
+            <Icon name="external" size={15} />
+            {t('Открыть страницу релиза')}
+          </button>
+        ) : null}
+
+        {update.status === 'ready' ? (
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => void install()}>
+            <Icon name="sparkles" size={15} />
+            {t('Перезапустить и обновить')}
+          </button>
+        ) : null}
+      </div>
+
+      {update.installReason === 'portable' ? (
+        <p className="page__note">
+          {t('Портативная версия не может заменить сама себя. Скачайте новый файл со страницы релиза и замените им старый — библиотека в папке данных останется на месте.')}
+        </p>
+      ) : null}
+
+      {update.status === 'available' && !canInstall && update.installReason !== 'portable' ? (
+        <p className="page__note">
+          {t('Эта сборка не умеет устанавливать обновления сама — скачайте новый выпуск со страницы релиза.')}
+        </p>
+      ) : null}
+
+      {update.status === 'error' ? (
+        <p className="page__note">
+          {t('Проверка обращается только к публичным релизам на GitHub. Если сеть недоступна, попробуйте позже или откройте страницу релиза вручную.')}
+        </p>
+      ) : null}
+    </SectionCard>
   )
 }
 

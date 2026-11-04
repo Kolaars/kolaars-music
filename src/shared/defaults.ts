@@ -65,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadDir: '',
   volumeTrim: 0,
   notifications: true,
+  autoCheckUpdates: true,
   discordRpc: false,
   // Public Application ID of the official Kolaars Music Discord app. Users can
   // replace it with their own app ID, but the normal case needs no setup.

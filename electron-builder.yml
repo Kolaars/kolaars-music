@@ -2,6 +2,16 @@ appId: com.kolaars.music
 productName: Kolaars Music
 copyright: Copyright © 2026 Kolaars and contributors — MIT licensed
 
+# Auto-update feed. `electron-builder` writes this into `app-update.yml`, which
+# `electron-updater` reads at runtime, and publishes `latest.yml` next to the
+# installers. Public releases need no token; builds are uploaded explicitly
+# with `gh release create`, so the npm scripts pass `--publish never`.
+publish:
+  provider: github
+  owner: Kolaars
+  repo: kolaars-music
+  releaseType: release
+
 directories:
   output: release
   buildResources: resources

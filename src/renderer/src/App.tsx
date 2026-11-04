@@ -16,6 +16,7 @@ import { useTheme } from './hooks/useTheme'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useMediaSession } from './hooks/useMediaSession'
 import { useDiscordRpc } from './hooks/useDiscordRpc'
+import { useUpdates } from './state/updates'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/Sidebar'
 import { PlayerBar } from './components/PlayerBar'
@@ -24,6 +25,7 @@ import { NowPlaying } from './components/NowPlaying'
 import { ImportListDialog } from './components/ImportListDialog'
 import { ExternalPlayer } from './components/ExternalPlayer'
 import { Toasts } from './components/Toasts'
+import { UpdateBanner } from './components/UpdateBanner'
 import { LyricsPanel } from './components/LyricsPanel'
 import { PromptModal } from './components/Dialogs'
 import { EmptyState } from './components/Feedback'
@@ -299,6 +301,10 @@ export default function App(): JSX.Element {
           setQueueOpen(false)
           useApp.getState().requestLyricsTab('sources')
           break
+        case 'check-updates':
+          setRoute({ name: 'settings' })
+          void useUpdates.getState().check(true)
+          break
         default:
           break
       }
@@ -424,6 +430,8 @@ export default function App(): JSX.Element {
       {nowPlayingOpen ? <NowPlaying /> : null}
 
       <ImportListDialog />
+
+      <UpdateBanner />
 
       <Toasts />
 

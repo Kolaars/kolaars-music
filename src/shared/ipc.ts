@@ -93,7 +93,13 @@ export const CH = {
   /* Discord Rich Presence */
   discordRpcConfigure: 'discord-rpc:configure',
   discordRpcActivity: 'discord-rpc:activity',
-  discordRpcStatus: 'discord-rpc:status'
+  discordRpcStatus: 'discord-rpc:status',
+
+  /* built-in updater */
+  updateStatus: 'update:status',
+  updateCheck: 'update:check',
+  updateDownload: 'update:download',
+  updateInstall: 'update:install'
 } as const
 
 export type Channel = (typeof CH)[keyof typeof CH]
@@ -108,7 +114,8 @@ export const EV = {
   importProgress: 'event:import-progress',
   mediaCommand: 'event:media-command',
   navigate: 'event:navigate',
-  discordRpcStatus: 'event:discord-rpc-status'
+  discordRpcStatus: 'event:discord-rpc-status',
+  updateStatus: 'event:update-status'
 } as const
 
 export type MediaCommand =
@@ -130,4 +137,5 @@ export type MediaCommand =
   | 'import-list'
   | 'new-playlist'
   | 'find-lyrics'
+  | 'check-updates'
 

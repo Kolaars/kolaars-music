@@ -1187,6 +1187,108 @@ kbd {
 }
 
 /* ==========================================================================
+   Update notice
+   ========================================================================== */
+
+.updatebar {
+  position: fixed;
+  left: 18px;
+  bottom: calc(var(--playerbar-h) + 16px);
+  z-index: 125;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(620px, calc(100vw - 36px));
+  padding: 12px 12px 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--bg-2) 94%, transparent);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(12px);
+  animation: updatebar-in 180ms ease-out;
+}
+
+@keyframes updatebar-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.updatebar__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+.updatebar__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.updatebar__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.updatebar__text {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-3);
+}
+
+.updatebar__progress {
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--bg-4);
+}
+
+.updatebar__progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+
+.updatebar__close,
+.updatebar__details {
+  flex-shrink: 0;
+}
+
+.updatebar__details {
+  font-size: 12px;
+}
+
+.updateprogress {
+  height: 4px;
+  margin: 2px 0 6px;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--bg-4);
+}
+
+.updateprogress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+
+html.platform-android .updatebar {
+  display: none;
+}
+
+/* ==========================================================================
    Player widgets (shared by the player bar and Now Playing)
    ========================================================================== */
 

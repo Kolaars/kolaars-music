@@ -18,7 +18,8 @@ import type {
   KolaarsApi,
   LibrarySnapshot,
   ProfilesState,
-  ShelfDescriptor
+  ShelfDescriptor,
+  UpdateStatus
 } from '@shared/api'
 import {
   ARCHIVE_COLLECTIONS,
@@ -378,6 +379,38 @@ export function createAndroidApi(): KolaarsApi {
         state: 'disabled'
       }),
       status: async (): Promise<DiscordRpcStatus> => ({ state: 'disabled' }),
+      onStatus: () => () => undefined
+    },
+
+    updates: {
+      // Android builds are distributed as an APK; the GitHub desktop releases
+      // are not installable here, so the Settings card stays hidden.
+      status: async (): Promise<UpdateStatus> => {
+        const native = await App.getInfo().catch(() => null)
+        return {
+          status: 'idle',
+          currentVersion: native?.version || '—',
+          canInstall: false,
+          installReason: 'unsupported'
+        }
+      },
+      check: async (): Promise<UpdateStatus> => {
+        const native = await App.getInfo().catch(() => null)
+        return {
+          status: 'up-to-date',
+          currentVersion: native?.version || '—',
+          canInstall: false,
+          installReason: 'unsupported',
+          checkedAt: Date.now()
+        }
+      },
+      download: async (): Promise<UpdateStatus> => ({
+        status: 'idle',
+        currentVersion: '—',
+        canInstall: false,
+        installReason: 'unsupported'
+      }),
+      install: async () => false,
       onStatus: () => () => undefined
     },
 

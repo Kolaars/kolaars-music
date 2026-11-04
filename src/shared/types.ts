@@ -268,6 +268,12 @@ export interface Settings {
   volumeTrim: number
   /** Show a desktop notification when the track changes. */
   notifications: boolean
+  /**
+   * Ask GitHub Releases for a newer build shortly after launch. This is a
+   * version check, not telemetry: no identifiers or usage data are sent, and
+   * the request can be turned off here.
+   */
+  autoCheckUpdates: boolean
   /** Show the current track in Discord Rich Presence. */
   discordRpc: boolean
   /**

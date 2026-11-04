@@ -18,6 +18,7 @@ import type {
   LibrarySnapshot,
   ProfilesState,
   ShelfDescriptor,
+  UpdateStatus,
   WikisourceHit
 } from '@shared/api'
 import type {
@@ -51,6 +52,7 @@ export type {
   LibrarySnapshot,
   ProfilesState,
   ShelfDescriptor,
+  UpdateStatus,
   WikisourceHit
 } from '@shared/api'
 
@@ -98,6 +100,15 @@ const api: KolaarsApi = {
     status: (): Promise<DiscordRpcStatus> => invoke(CH.discordRpcStatus),
     onStatus: (cb: (status: DiscordRpcStatus) => void): (() => void) =>
       subscribe(EV.discordRpcStatus, cb)
+  },
+
+  updates: {
+    status: (): Promise<UpdateStatus> => invoke(CH.updateStatus),
+    check: (manual = true): Promise<UpdateStatus> => invoke(CH.updateCheck, manual),
+    download: (): Promise<UpdateStatus> => invoke(CH.updateDownload),
+    install: (): Promise<boolean> => invoke(CH.updateInstall),
+    onStatus: (cb: (status: UpdateStatus) => void): (() => void) =>
+      subscribe(EV.updateStatus, cb)
   },
 
   store: {

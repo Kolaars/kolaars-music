@@ -21,6 +21,7 @@ import * as store from './db'
 import { resolveDownloadDir, restoreDownloads } from './downloads'
 import { CONTENT_SECURITY_POLICY } from './csp'
 import { startRendererServer, type RendererServer } from './rendererServer'
+import { configureUpdates, setAutoCheckEnabled, stopUpdates } from './updates'
 
 const isDev = !app.isPackaged
 const APP_ID = 'com.kolaars.music'
@@ -209,6 +210,9 @@ if (!app.requestSingleInstanceLock()) {
     setLocale(resolveLocale(db.settings.language, app.getLocale()))
     await restoreDownloads(resolveDownloadDir(db.settings.downloadDir))
 
+    configureUpdates(() => mainWindow)
+    setAutoCheckEnabled(db.settings.autoCheckUpdates)
+
     registerIpc(() => mainWindow)
     buildAppMenu(() => mainWindow)
     applyContentSecurityPolicy()
@@ -248,6 +252,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     // Close the local Discord socket so the presence disappears promptly.
     void shutdownDiscordRpc()
+    stopUpdates()
     // Persist the library synchronously-ish before the process goes away.
     void store.flushAndClose()
     void rendererServer?.close()
